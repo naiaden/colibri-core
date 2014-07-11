@@ -28,6 +28,9 @@
 #include "common.h"
 #include "classdecoder.h"
 
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <sstream>
 
 const int MAINPATTERNBUFFERSIZE = 40960;
 
@@ -91,6 +94,24 @@ class Pattern {
     public:
      unsigned char * data; /**< This array holds the variable-width byte representation, it is always terminated by \0 (ENDMARKER) */
      
+    template<class Archive>
+    void save(Archive & ar, const unsigned int version) const {
+        std::ostringstream oss;
+        this->write(&oss);
+        std::string output = oss.str();
+        ar & output;
+    }
+
+    template<class Archive>
+    void load(Archive & ar, const unsigned int version) {
+        std::string input;
+        ar & input;
+        std::istringstream iss(input);
+        ::new(this)Pattern(&iss);
+    }
+
+    BOOST_SERIALIZATION_SPLIT_MEMBER()
+
      /**
       * Default/empty Pattern constructor. Creates an empty pattern. Still consumes one
       * byte (the end-marker)
