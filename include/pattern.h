@@ -107,7 +107,7 @@ class Pattern {
         std::string input;
         ar & input;
         std::istringstream iss(input);
-        ::new(this)Pattern(&iss);
+        //::new(this)Pattern(&iss, false, true);
     }
 
     BOOST_SERIALIZATION_SPLIT_MEMBER()
