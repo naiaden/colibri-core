@@ -455,14 +455,19 @@ void readanddiscardpattern(std::istream * in) {
 Pattern::Pattern(std::istream * in, bool ignoreeol, bool debug) {
     int readingdata = 0;
     unsigned char c = 0;
-    int beginpos = -1;
+
+    std::streampos beginpos = 0;
+    bool gotbeginpos = false;
 
     //stage 1 -- get length
     int length = 0;
     readingdata = 0;
     do {
         if (in->good()) {
-            if (beginpos == -1) beginpos = in->tellg();
+            if (!gotbeginpos) {
+                beginpos = in->tellg();
+                gotbeginpos = true;
+            }
             in->read( (char* ) &c, sizeof(char));
             if (debug) std::cerr << "DEBUG read1=" << (int) c << endl;
         } else {
@@ -506,14 +511,14 @@ Pattern::Pattern(std::istream * in, bool ignoreeol, bool debug) {
     int i = 0;
     readingdata = 0;
     if (debug) std::cerr << "STARTING STAGE 2: BEGINPOS=" << beginpos << ", LENGTH=" << length << std::endl;
-    if (beginpos == -1) {
+    if (!gotbeginpos) {
         std::cerr << "ERROR: Invalid position in input stream whilst Reading pattern" << std::endl;
         throw InternalError();
     }
     in->seekg(beginpos, ios::beg);
-    int beginposcheck = in->tellg();
+    std::streampos beginposcheck = in->tellg();
     if (beginposcheck != beginpos) {
-        std::cerr << "ERROR: Resetting read pointer for stage 2 failed! (" << beginposcheck << " != " << beginpos << ")" << std::endl;
+        std::cerr << "ERROR: Resetting read pointer for stage 2 failed! (" << (unsigned long) beginposcheck << " != " << (unsigned long) beginpos << ")" << std::endl;
         throw InternalError();
     } else if (!in->good()) {
         std::cerr << "ERROR: After resetting readpointer for stage 2, istream is not 'good': eof=" << (int) in->eof() << ", fail=" << (int) in->fail() << ", badbit=" << (int) in->bad() << std::endl;
@@ -1250,7 +1255,7 @@ Pattern Pattern::reverse() const {
             i += c + 1;
         } else {
             //we have another marker
-            newdata[cursor--] = c;
+            newdata[--cursor] = c;
             i++;
         }
     } while (1);
