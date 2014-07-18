@@ -96,6 +96,8 @@ class Pattern {
      
     template<class Archive>
     void save(Archive & ar, const unsigned int version) const {
+        //std::cerr << "c " << n() << std::endl;
+
         std::ostringstream oss;
         this->write(&oss);
         std::string output = oss.str();
@@ -108,6 +110,11 @@ class Pattern {
         ar & input;
         std::istringstream iss(input);
         //::new(this)Pattern(&iss, false, true);
+        unsigned char* buffer = new unsigned char[9999];
+        ::new(this)Pattern(&iss, buffer, 9999, false, false);
+        delete buffer;
+
+        //std::cerr << "l " << n() << std::endl;
     }
 
     BOOST_SERIALIZATION_SPLIT_MEMBER()
