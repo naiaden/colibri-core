@@ -26,6 +26,10 @@ unsigned char * inttopatterndata(unsigned char * buffer,unsigned int cls) {
 	unsigned char length = 0;
 	do {
 		cls2 = cls2 / 256;
+        if (length == 255) {
+            cerr << "ERROR: inttopatterndata() LENGTH OVERFLOW" << endl;
+            throw InternalError();
+        }
 		length++;
 	} while (cls2 > 0);
 	int i = 0;
@@ -288,7 +292,7 @@ void Pattern::write(ostream * out) const {
     }
 }
 
-std::string datatostring(unsigned char * data, ClassDecoder& classdecoder, int maxbytes = 0) {
+std::string datatostring(unsigned char * data, const ClassDecoder& classdecoder, int maxbytes = 0) {
     std::string result = ""; 
     int i = 0;
     int gapsize = 0;
@@ -345,11 +349,11 @@ std::string datatostring(unsigned char * data, ClassDecoder& classdecoder, int m
 }
 
 
-std::string Pattern::tostring(ClassDecoder& classdecoder) const {
+std::string Pattern::tostring(const ClassDecoder& classdecoder) const {
     return datatostring(data, classdecoder);
 }
 
-std::string PatternPointer::tostring(ClassDecoder& classdecoder) const {
+std::string PatternPointer::tostring(const ClassDecoder& classdecoder) const {
     return datatostring(data, classdecoder, bytes);
 }
 
@@ -1266,16 +1270,16 @@ Pattern Pattern::reverse() const {
 }
 
 
-IndexedCorpus::IndexedCorpus(std::istream *in){
-    this->load(in);
+IndexedCorpus::IndexedCorpus(std::istream *in, bool debug){
+    this->load(in, debug);
 }
 
-IndexedCorpus::IndexedCorpus(std::string filename){
-    this->load(filename);
+IndexedCorpus::IndexedCorpus(std::string filename, bool debug){
+    this->load(filename, debug);
 }
 
 
-void IndexedCorpus::load(std::istream *in) {
+void IndexedCorpus::load(std::istream *in, bool debug) {
     int sentence = 0;
     while (in->good()) {
         sentence++;
@@ -1287,24 +1291,28 @@ void IndexedCorpus::load(std::istream *in) {
             data.push_back(IndexPattern(ref,unigram));
         }
     }
+    if (debug) cerr << "Loaded " << sentence << " sentences" << endl;
     data.shrink_to_fit();
 }
 
 
-void IndexedCorpus::load(std::string filename) {
+void IndexedCorpus::load(std::string filename, bool debug) {
     std::ifstream * in = new std::ifstream(filename.c_str());
     if (!in->good()) {
         std::cerr << "ERROR: Unable to load file " << filename << std::endl;
         throw InternalError();
     }
-    this->load( (std::istream *) in);
+    this->load( (std::istream *) in, debug);
     in->close();
     delete in;
 }
 
-Pattern IndexedCorpus::getpattern(const IndexReference & begin, int length) { 
+Pattern IndexedCorpus::getpattern(const IndexReference & begin, int length) const {
     //warning: will segfault if mainpatternbuffer overflows!!
-    iterator iter = this->find(begin);
+    //length in tokens
+    //
+    //std::cerr << "getting pattern " << begin.sentence << ":" << begin.token << " length " << length << std::endl;
+    const_iterator iter = this->find(begin);
     unsigned char * buffer = mainpatternbuffer;
     int i = 0;
     while (i < length) {
@@ -1356,7 +1364,7 @@ std::vector<IndexReference> IndexedCorpus::findpattern(const Pattern & pattern, 
     return result;
 }
 
-int IndexedCorpus::sentencelength(int sentence) {
+int IndexedCorpus::sentencelength(int sentence) const {
     IndexReference ref = IndexReference(sentence, 0);
     int length = 0;
     for (const_iterator iter = this->find(ref); iter != this->end(); iter++) {
@@ -1366,15 +1374,15 @@ int IndexedCorpus::sentencelength(int sentence) {
     return length;
 }
 
-unsigned int IndexedCorpus::sentences() {
+unsigned int IndexedCorpus::sentences() const {
     int max = 0;
-    for (iterator iter = this->begin(); iter != this->end(); iter++) {
+    for (const_iterator iter = this->begin(); iter != this->end(); iter++) {
         if (iter->ref.sentence > max) max = iter->ref.sentence;
     }
     return max;
 }
 
-Pattern IndexedCorpus::getsentence(int sentence) { 
+Pattern IndexedCorpus::getsentence(int sentence) const { 
     return getpattern(IndexReference(sentence,0), sentencelength(sentence));
 }
 

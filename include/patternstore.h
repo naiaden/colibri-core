@@ -80,11 +80,11 @@ class IndexedCorpus {
         std::vector<IndexPattern> data;
     public:
         IndexedCorpus() {};
-        IndexedCorpus(std::istream *in);
-        IndexedCorpus(std::string filename);
+        IndexedCorpus(std::istream *in, bool debug = false);
+        IndexedCorpus(std::string filename, bool debug = false);
         
-        void load(std::istream *in);
-        void load(std::string filename);
+        void load(std::istream *in, bool debug = false);
+        void load(std::string filename, bool debug = false);
         typedef std::vector<IndexPattern>::iterator iterator;
         typedef std::vector<IndexPattern>::const_iterator const_iterator;
         
@@ -119,13 +119,13 @@ class IndexedCorpus {
             }
         } 
 
-        Pattern getpattern(const IndexReference & begin, int length=1);
-        Pattern getsentence(int sentence); //returns sentence as a pattern
+        Pattern getpattern(const IndexReference & begin, int length=1) const;
+        Pattern getsentence(int sentence) const; //returns sentence as a pattern
          
         std::vector<IndexReference> findpattern(const Pattern & pattern, int maxmatches=0); //by far not as efficient as a pattern model obviously
 
-        int sentencelength(int sentence) ;  //returns the length of a sentence (0-indexed)
-        unsigned int sentences() ; //returns the number of sentences (1-indexed)
+        int sentencelength(int sentence) const;  //returns the length of a sentence (0-indexed)
+        unsigned int sentences() const; //returns the number of sentences (1-indexed)
 
 
         void push_back(const IndexReference ref, const Pattern & pattern) {
@@ -154,7 +154,7 @@ template<class ContainerType,class ReadWriteSizeType = uint64_t>
 class PatternStore: public PatternStoreInterface {
     public:
         PatternStore<ContainerType,ReadWriteSizeType>() {};
-        ~PatternStore<ContainerType,ReadWriteSizeType>() {};
+        virtual ~PatternStore<ContainerType,ReadWriteSizeType>() {};
     
 
         virtual void insert(const Pattern & pattern)=0; //might be a noop in some implementations that require a value
@@ -191,7 +191,7 @@ class PatternMapStore: public PatternStore<ContainerType,ReadWriteSizeType> {
         ValueHandler valuehandler;
      public:
         PatternMapStore<ContainerType,ValueType,ValueHandler,ReadWriteSizeType>(): PatternStore<ContainerType,ReadWriteSizeType>() {};
-        ~PatternMapStore<ContainerType,ValueType,ValueHandler,ReadWriteSizeType>() {};
+        virtual ~PatternMapStore<ContainerType,ValueType,ValueHandler,ReadWriteSizeType>() {};
 
         virtual void insert(const Pattern & pattern, ValueType & value)=0;
 
@@ -310,7 +310,7 @@ class PatternSet: public PatternStore<t_patternset,ReadWriteSizeType> {
     public:
 
         PatternSet<ReadWriteSizeType>(): PatternStore<t_patternset,ReadWriteSizeType>() {};
-        ~PatternSet<ReadWriteSizeType>() {};
+        virtual ~PatternSet<ReadWriteSizeType>() {};
 
         void insert(const Pattern & pattern) {
             data.insert(pattern);
@@ -404,7 +404,7 @@ class OrderedPatternSet: public PatternStore<t_orderedpatternset,ReadWriteSizeTy
     public:
 
         OrderedPatternSet<ReadWriteSizeType>(): PatternStore<t_orderedpatternset,ReadWriteSizeType>() {};
-        ~OrderedPatternSet<ReadWriteSizeType>();
+        virtual ~OrderedPatternSet<ReadWriteSizeType>();
 
         void insert(const Pattern pattern) {
             data.insert(pattern);
@@ -506,7 +506,7 @@ class OrderedPatternMap: public PatternMapStore<std::map<const Pattern,ValueType
         std::map<const Pattern, ValueType> data;
     public:
         OrderedPatternMap<ValueType,ValueHandler,ReadWriteSizeType>(): PatternMapStore<std::map<const Pattern, ValueType>,ValueType,ValueHandler,ReadWriteSizeType>() {};
-        ~OrderedPatternMap<ValueType,ValueHandler,ReadWriteSizeType>() {};
+        virtual ~OrderedPatternMap<ValueType,ValueHandler,ReadWriteSizeType>() {};
 
         void insert(const Pattern & pattern, ValueType & value) { 
             data[pattern] = value;

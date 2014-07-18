@@ -226,12 +226,12 @@ class Pattern {
       * Converts this pattern back into its string representation, using a
       * classdecoder
       */
-     std::string tostring(ClassDecoder& classdecoder) const; //pattern to string (decode)
+     std::string tostring(const ClassDecoder& classdecoder) const; //pattern to string (decode)
 
      /**
       * alias for tostring()
       */
-     std::string decode(ClassDecoder& classdecoder) const { return tostring(classdecoder); } //alias
+     std::string decode(const ClassDecoder& classdecoder) const { return tostring(classdecoder); } //alias
 
      /**
       * Debug function outputting the classes in this pattern to stderr
@@ -392,8 +392,8 @@ class PatternPointer {
      
      const PatternCategory category() const;
 
-     std::string tostring(ClassDecoder& classdecoder) const; //pattern to string (decode)
-     std::string decode(ClassDecoder& classdecoder) const { return tostring(classdecoder); } //pattern to string (decode)
+     std::string tostring(const ClassDecoder& classdecoder) const; //pattern to string (decode)
+     std::string decode(const ClassDecoder& classdecoder) const { return tostring(classdecoder); } //pattern to string (decode)
      bool out() const;
      
      bool operator==(const PatternPointer & other) const {
