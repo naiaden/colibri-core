@@ -353,6 +353,7 @@ std::string Pattern::tostring(const ClassDecoder& classdecoder) const {
     return datatostring(data, classdecoder);
 }
 
+
 std::string PatternPointer::tostring(const ClassDecoder& classdecoder) const {
     return datatostring(data, classdecoder, bytes);
 }
@@ -1212,7 +1213,7 @@ Pattern Pattern::replace(int begin, int length, const Pattern & replacement) con
 
 
 Pattern Pattern::addskip(std::pair<int,int> gap) const {
-    //Returns a pattern with the specified spans replaced by fixed skips
+    //Returns a pattern with the specified span replaced by a fixed skip
     const int _n = n();
     Pattern pattern = *this;
     const Pattern replacement = Pattern(gap.second);
@@ -1397,6 +1398,7 @@ unsigned int IndexedCorpus::sentences() const {
 Pattern IndexedCorpus::getsentence(int sentence) const { 
     return getpattern(IndexReference(sentence,0), sentencelength(sentence));
 }
+
 
 Pattern patternfromfile(const std::string & filename) {//helper function to read pattern from file, mostly for Cython
     std::ifstream * in = new std::ifstream(filename.c_str());
