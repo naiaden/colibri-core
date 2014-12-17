@@ -502,7 +502,11 @@ Pattern::Pattern(std::istream * in, bool ignoreeol, bool debug) {
         }
     } while (1);
 
-    
+    if (length == 0) {
+        std::cerr << "ERROR: Attempting to read pattern from file, but file is empty?" << std::endl;
+        throw InternalError();
+    }
+
     //allocate buffer
     if (c == ENDMARKER) {
         data  = new unsigned char[length];
@@ -522,7 +526,7 @@ Pattern::Pattern(std::istream * in, bool ignoreeol, bool debug) {
     }
     in->seekg(beginpos, ios::beg);
     std::streampos beginposcheck = in->tellg();
-    if (beginposcheck != beginpos) {
+    if ((beginposcheck != beginpos) && (beginposcheck >= 18446744073709551000)) {
         std::cerr << "ERROR: Resetting read pointer for stage 2 failed! (" << (unsigned long) beginposcheck << " != " << (unsigned long) beginpos << ")" << std::endl;
         throw InternalError();
     } else if (!in->good()) {
@@ -772,7 +776,7 @@ Pattern::Pattern(const PatternPointer& ref) { //constructor from patternpointer
         throw InternalError();
     }
     data = new unsigned char[ref.bytesize() + 1];
-    for (int i = 0; i < ref.bytesize(); i++) {
+    for (unsigned int i = 0; i < ref.bytesize(); i++) {
         data[i] = ref.data[i];
     }
     data[ref.bytesize()] = ENDMARKER;
@@ -819,14 +823,14 @@ bool Pattern::operator>(const Pattern & other) const {
     return (other < *this);
 }
 
-Pattern & Pattern::operator =(const Pattern other) { //(note: argument passed by value!)
+void Pattern::operator =(const Pattern & other) { 
     //delete old data
     if (data != NULL) {
         delete[] data;
         data = NULL;
     } else if (data == other.data) {
         //nothing to do
-        return *this;
+        return;
     }
     
     //set new data
@@ -836,9 +840,6 @@ Pattern & Pattern::operator =(const Pattern other) { //(note: argument passed by
         data[i] = other.data[i];
     }  
     data[s] = ENDMARKER;
-
-    // by convention, always return *this (for chaining)
-    return *this;
 }
 
 Pattern Pattern::operator +(const Pattern & other) const {
@@ -1214,7 +1215,7 @@ Pattern Pattern::replace(int begin, int length, const Pattern & replacement) con
 
 Pattern Pattern::addskip(std::pair<int,int> gap) const {
     //Returns a pattern with the specified span replaced by a fixed skip
-    const int _n = n();
+    const unsigned int _n = n();
     Pattern pattern = *this;
     const Pattern replacement = Pattern(gap.second);
     pattern = pattern.replace(gap.first, gap.second, replacement);
@@ -1227,7 +1228,7 @@ Pattern Pattern::addskip(std::pair<int,int> gap) const {
 
 Pattern Pattern::addskips(std::vector<std::pair<int,int> > & gaps) const {
     //Returns a pattern with the specified spans replaced by fixed skips
-    const int _n = n();
+    const unsigned int _n = n();
     Pattern pattern = *this;
     for (vector<pair<int,int>>::iterator iter = gaps.begin(); iter != gaps.end(); iter++) {
         const Pattern replacement = Pattern(iter->second);
@@ -1364,7 +1365,7 @@ std::vector<IndexReference> IndexedCorpus::findpattern(const Pattern & pattern, 
             i++;
             if (i == _n) {
                 result.push_back(ref);
-                if ((maxmatches != 0) && (result.size() == maxmatches)) break;
+                if ((maxmatches != 0) && (result.size() == (unsigned int) maxmatches)) break;
             }
             matchunigram = pattern[i];
             moved = true;
@@ -1381,14 +1382,14 @@ int IndexedCorpus::sentencelength(int sentence) const {
     IndexReference ref = IndexReference(sentence, 0);
     int length = 0;
     for (const_iterator iter = this->find(ref); iter != this->end(); iter++) {
-        if (iter->ref.sentence != sentence) return length;
+        if (iter->ref.sentence != (unsigned int) sentence) return length;
         length++;
     }
     return length;
 }
 
 unsigned int IndexedCorpus::sentences() const {
-    int max = 0;
+    unsigned int max = 0;
     for (const_iterator iter = this->begin(); iter != this->end(); iter++) {
         if (iter->ref.sentence > max) max = iter->ref.sentence;
     }
@@ -1409,4 +1410,5 @@ Pattern patternfromfile(const std::string & filename) {//helper function to read
     Pattern p = Pattern( (std::istream *) in, true);
     in->close();
     delete in;
+    return p;
 }
