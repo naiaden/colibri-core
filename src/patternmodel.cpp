@@ -11,11 +11,12 @@ int getmodeltype(const std::string filename) {
     f->read( (char*) &model_version, sizeof(char));        
     f->close();
     delete f;
-    if ((null != 0) || ((model_type != UNINDEXEDPATTERNMODEL) && (model_type != INDEXEDPATTERNMODEL) ))  {
-        return 0;
-    } else {
-        return model_type;
+    if (null != 0) return -1;
+    if ((model_type != UNINDEXEDPATTERNMODEL) && (model_type != INDEXEDPATTERNMODEL) ) {
+        std::cerr << "got model_type " << (int) model_type << std::endl;
+        return -2;
     }
+    return model_type;
 }
 
 /*

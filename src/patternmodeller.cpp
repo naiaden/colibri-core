@@ -17,6 +17,7 @@
 #include <getopt.h>
 #include <patternmodel.h>
 #include <config.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -418,8 +419,12 @@ int main( int argc, char *argv[] ) {
             }
         }
 
-        int inputmodeltype = 0;
+        int inputmodeltype = -99;
         if (!inputmodelfile.empty()) {
+            if ((access(inputmodelfile.c_str(), F_OK) == -1)) {
+                cerr << "No such file: " << inputmodelfile << endl;
+                exit(2);
+            }
             inputmodeltype = getmodeltype(inputmodelfile);
             if ((inputmodeltype == INDEXEDPATTERNMODEL) && (outputmodeltype == UNINDEXEDPATTERNMODEL)) {
                 cerr << "Indexed input model will be read as unindexed because -u was set" << endl;
@@ -456,6 +461,10 @@ int main( int argc, char *argv[] ) {
                 cerr << "Reverse index: disabled" << endl;
             } else {
                 if (!reverseindexfile.empty()) {
+                    if ((access(reverseindexfile.c_str(), F_OK) == -1)) {
+                        cerr << "No such file: " << reverseindexfile << endl;
+                        exit(2);
+                    }
                     cerr << "Loading corpus data for reverse index" << endl;
                     std::ifstream * f = new ifstream(reverseindexfile.c_str());
                     if (!f->good()) {
@@ -476,6 +485,11 @@ int main( int argc, char *argv[] ) {
             if (corpusfile.empty()) {
                 cerr << "ERROR: Corpus data file (-f) must be specified when -I is set!." << classfile << endl;
                 exit(2);
+            } else {
+                if ((access(corpusfile.c_str(), F_OK) == -1)) {
+                    cerr << "No such file: " << corpusfile << endl;
+                    exit(2);
+                }
             }
 
             if (outputmodeltype == UNINDEXEDPATTERNMODEL) {
@@ -594,7 +608,7 @@ int main( int argc, char *argv[] ) {
             }
 
         } else if (!inputmodelfile.empty()) {
-            cerr << "ERROR: Input model is not a valid colibri pattern model" << endl;
+            cerr << "ERROR: Input model is not a valid colibri pattern model (" << inputmodeltype << ")" << endl;
             exit(2);
         } else {
             //no inputmodel
