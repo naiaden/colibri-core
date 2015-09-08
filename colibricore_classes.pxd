@@ -132,7 +132,7 @@ cdef extern from "patternstore.h":
         void read(string filename) nogil
         void write(string filename) nogil
 
-    cdef cppclass OrderedPatternMap[ValueType,ValueHandler,ReadWriteSizeType]:
+    cdef cppclass HashOrderedPatternMap[ValueType,ValueHandler,ReadWriteSizeType]:
         cppclass iterator:
             pair[Pattern,ValueType] & operator*() nogil
             iterator operator++() nogil
@@ -141,7 +141,7 @@ cdef extern from "patternstore.h":
         size_t size() nogil
         iterator begin() nogil
         iterator end() nogil
-        OrderedPatternMap() nogil
+        HashOrderedPatternMap() nogil
         void insert(Pattern&, ValueType& value) nogil
         bool has(Pattern&) nogil
         ValueType& operator[](Pattern&) nogil
@@ -167,7 +167,7 @@ cdef extern from "patternstore.h":
         void read(string filename) nogil
         void write(string filename) nogil
 
-    cdef cppclass OrderedPatternSet[ReadWriteSizeType]:
+    cdef cppclass HashOrderedPatternSet[ReadWriteSizeType]:
         cppclass iterator:
             Pattern& operator*() nogil
             iterator operator++() nogil
@@ -176,7 +176,7 @@ cdef extern from "patternstore.h":
         size_t size() nogil
         iterator begin() nogil
         iterator end() nogil
-        PatternSet() nogil
+        HashOrderedPatternSet() nogil
         void insert(Pattern&) nogil
         bool has(Pattern&) nogil
         iterator erase(Pattern&) nogil
@@ -293,11 +293,10 @@ cdef extern from "patternmodel.h":
         unsigned int tokens()
 
 
-    ctypedef PatternMap[uint32_t,BaseValueHandler[uint32_t],uint64_t] t_relationmap
-    ctypedef PatternMap[double,BaseValueHandler[double],uint64_t] t_relationmap_double
-
-    ctypedef PatternMap[uint32_t,BaseValueHandler[uint32_t],uint64_t].iterator t_relationmap_iterator
-    ctypedef PatternMap[double,BaseValueHandler[double],uint64_t].iterator t_relationmap_double_iterator
+    ctypedef PatternMap[unsigned int,BaseValueHandler[uint],unsigned long] t_relationmap
+    ctypedef PatternMap[double,BaseValueHandler[double],unsigned long] t_relationmap_double
+    ctypedef PatternMap[unsigned int,BaseValueHandler[uint],unsigned long].iterator t_relationmap_iterator
+    ctypedef PatternMap[double,BaseValueHandler[double],unsigned long].iterator t_relationmap_double_iterator
 
 
     cdef cppclass PatternSetModel:
@@ -373,8 +372,8 @@ cdef extern from "patternmodel.h":
 
         t_relationmap getsubchildren(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
         t_relationmap getsubparents(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
-        t_relationmap getleftneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
-        t_relationmap getrightneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
+        t_relationmap getleftneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size, unsigned int cutoff) except +KeyError
+        t_relationmap getrightneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size, unsigned int cutoff) except +KeyError
         t_relationmap getskipcontent(Pattern & pattern) except +KeyError
         t_relationmap gettemplates(Pattern & pattern, unsigned int occurrencethreshold) except +KeyError
         t_relationmap getinstances(Pattern & pattern, unsigned int occurrencethreshold) except +KeyError
@@ -440,8 +439,8 @@ cdef extern from "patternmodel.h":
 
         t_relationmap getsubchildren(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
         t_relationmap getsubparents(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
-        t_relationmap getleftneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
-        t_relationmap getrightneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
+        t_relationmap getleftneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size, unsigned int cutoff) except +KeyError
+        t_relationmap getrightneighbours(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size, unsigned int cutoff) except +KeyError
         t_relationmap getskipcontent(Pattern & pattern) except +KeyError
         t_relationmap gettemplates(Pattern & pattern, unsigned int occurrencethreshold) except +KeyError
         t_relationmap getinstances(Pattern & pattern, unsigned int occurrencethreshold) except +KeyError

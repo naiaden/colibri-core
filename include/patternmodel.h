@@ -91,9 +91,8 @@ class PatternModelOptions {
                                  ///< DO_SKIPGRAMS_EXHAUSTIVE is set to true
 
         int MINTOKENS_UNIGRAMS; ///< The occurrence threshold for unigrams, unigrams must occur at least this many times for higher-order ngram/skipgram to be included in a model
-                                ///< Defaults to the same value as MINOKENS
-                                ///< Only has an effect if MINTOKENS_UNIGRAMS >
-                                //MINTOKENS.
+                                ///< Defaults to the same value as MINTOKENS
+                                ///< Only has an effect if MINTOKENS_UNIGRAMS > MINTOKENS.
                                 //
         int MINLENGTH; ///< The minimum length of patterns to be loaded/extracted (in words/tokens) (default: 1)
         int MAXLENGTH; ///< The maximum length of patterns to be loaded/extracted, inclusive (in words/tokens) (default: 100)
@@ -180,8 +179,11 @@ class PatternModelOptions {
 
 };
 
-typedef PatternMap<uint32_t> t_relationmap;
-typedef PatternMap<double> t_relationmap_double;
+typedef PatternMap<uint32_t,BaseValueHandler<uint32_t>,uint64_t> t_relationmap; 
+typedef PatternMap<double,BaseValueHandler<double>,uint64_t> t_relationmap_double;
+
+typedef PatternMap<uint32_t,BaseValueHandler<uint32_t>,uint64_t>::iterator t_relationmap_iterator;  //needed for Cython
+typedef PatternMap<double,BaseValueHandler<double>,uint64_t>::iterator t_relationmap_double_iterator; 
 
 /**
  * Basic read-only interface for pattern models, abstract base class.
@@ -619,10 +621,16 @@ class PatternModel: public MapType, public PatternModelInterface {
                 throw InternalError();
             }
 
+            bool iter_unigramsonly = false; //only needed for counting unigrams when we need them but they would be discarded
+            if ((options.MINLENGTH > 1) && (options.MINTOKENS_UNIGRAMS > options.MINTOKENS)) {
+                iter_unigramsonly = true;
+            }
+
             if (!options.QUIET) {
                 std::cerr << "Training patternmodel";
                 if (constrainbymodel != NULL) std::cerr << ", constrained by another model";
                 std::cerr << ", occurrence threshold: " << options.MINTOKENS;
+                if (iter_unigramsonly) stdd::cerr << ", secondary word occurrence threshold: " << options.MINTOKENS_UNIGRAMS;
                 std::cerr << std::endl; 
             }
             std::vector<std::pair<PatternPointer,int>> ngrams;
@@ -632,10 +640,6 @@ class PatternModel: public MapType, public PatternModelInterface {
             int prevsize = 0;
             int backoffn = 0;
             
-            bool iter_unigramsonly = false; //only needed for counting unigrams when we need them but they would be discarded
-            if ((options.MINLENGTH > 1) && (options.MINTOKENS_UNIGRAMS > options.MINTOKENS)) {
-                iter_unigramsonly = true;
-            }
 
             for (int n = 1; n <= options.MAXLENGTH; n++) { 
                 int foundngrams = 0;
@@ -694,12 +698,12 @@ class PatternModel: public MapType, public PatternModelInterface {
                         found = true; //are the submatches in order? (default to true, needed for mintokens==1) 
 
                         //unigram check, special scenario, not usually processed!! (normal lookback suffices for most uses)
-                        if ((!iter_unigramsonly) && (options.MINTOKENS_UNIGRAMS> options.MINTOKENS)) { 
+                        if ((!iter_unigramsonly) && (options.MINTOKENS_UNIGRAMS> options.MINTOKENS) && (n > 1)) { 
                             subngrams.clear();
                             iter->first.ngrams(subngrams,1); //get all unigrams
                             for (std::vector<PatternPointer>::iterator iter2 = subngrams.begin(); iter2 != subngrams.end(); iter2++) {
                                 //check if unigram exists
-                                if (!this->has(*iter2)) { 
+                                if (!this->occurrencecount(*iter2) < options.MINTOKENS_UNIGRAMS) { 
                                     found = false;
                                     break;
                                 }
@@ -1619,8 +1623,8 @@ class PatternModel: public MapType, public PatternModelInterface {
         virtual t_relationmap gettemplates(const Pattern & pattern,int = 0) { return t_relationmap(); } //does nothing for unindexed models
         virtual t_relationmap getinstances(const Pattern & pattern,int = 0) { return t_relationmap(); } //does nothing for unindexed models
         virtual t_relationmap getskipcontent(const Pattern & pattern) { return t_relationmap(); } //does nothing for unindexed models
-        virtual t_relationmap getleftneighbours(const Pattern & pattern,int = 0, int = 0,int = 0) { return t_relationmap(); } //does nothing for unindexed models
-        virtual t_relationmap getrightneighbours(const Pattern & pattern,int = 0, int = 0,int = 0) { return t_relationmap(); } //does nothing for unindexed models
+        virtual t_relationmap getleftneighbours(const Pattern & pattern,int = 0, int = 0,int = 0,int =0) { return t_relationmap(); } //does nothing for unindexed models
+        virtual t_relationmap getrightneighbours(const Pattern & pattern,int = 0, int = 0,int = 0,int =0) { return t_relationmap(); } //does nothing for unindexed models
         virtual t_relationmap_double getnpmi(const Pattern & pattern, double threshold) { return t_relationmap_double(); } //does nothing for unindexed models
         virtual int computeflexgrams_fromskipgrams() { return 0; }//does nothing for unindexed models
         virtual int computeflexgrams_fromcooc() {return 0; }//does nothing for unindexed models
@@ -2150,7 +2154,7 @@ class IndexedPatternModel: public PatternModel<IndexedData,IndexedDataHandler,Ma
     }
 
 
-    t_relationmap getleftneighbours(const Pattern & pattern, unsigned int occurrencethreshold = 0, int category = 0, unsigned int size = 0) {
+    t_relationmap getleftneighbours(const Pattern & pattern, unsigned int occurrencethreshold = 0, int category = 0, unsigned int size = 0, unsigned int cutoff=0) {
         if ((this->reverseindex == NULL) || (this->reverseindex->empty())) {
             std::cerr << "ERROR: No reverse index present" << std::endl;
             throw InternalError();
@@ -2176,14 +2180,16 @@ class IndexedPatternModel: public PatternModel<IndexedData,IndexedDataHandler,Ma
                         && ((size == 0) || (neighbour.n() >= size))
                     ){
                     neighbours[neighbour]++;
+                    if ((cutoff > 0) && (neighbours.size() >= cutoff)) break;
                 } else if ((ref2.token > ref.token) || (ref2.sentence > ref.sentence)) break;
             }
+            if ((cutoff > 0) && (neighbours.size() >= cutoff)) break;
         }
         if (occurrencethreshold > 0) this->prunerelations(neighbours, occurrencethreshold);
         return neighbours;
     }
 
-    t_relationmap getrightneighbours(const Pattern & pattern, unsigned int occurrencethreshold = 0, int category = 0, unsigned int size = 0) {
+    t_relationmap getrightneighbours(const Pattern & pattern, unsigned int occurrencethreshold = 0, int category = 0, unsigned int size = 0, unsigned int cutoff=0) {
         if ((this->reverseindex == NULL) || (this->reverseindex->empty())) {
             std::cerr << "ERROR: No reverse index present" << std::endl;
             throw InternalError();
@@ -2207,8 +2213,10 @@ class IndexedPatternModel: public PatternModel<IndexedData,IndexedDataHandler,Ma
                         && ((category == 0) || (neighbour.category() >= category))
                         && ((size == 0) || (neighbour.n() >= size)) ) {
                     neighbours[neighbour]++;
+                    if ((cutoff > 0) && (neighbours.size() >= cutoff)) break;
                 }
             }
+            if ((cutoff > 0) && (neighbours.size() >= cutoff)) break;
         }
         if (occurrencethreshold > 0) this->prunerelations(neighbours, occurrencethreshold);
         return neighbours;
@@ -2238,6 +2246,21 @@ class IndexedPatternModel: public PatternModel<IndexedData,IndexedDataHandler,Ma
         //opting for memory over speed (more iterations, less memory)
         //overloaded version for indexedmodel
         if ((this->cache_grouptotal.empty()) && (!this->data.empty())) this->computestats();
+        
+        if (this->cache_n.size() == 1) {
+            //special condition, only unigrams, we can be done quicker
+            this->cache_grouptotalwordtypes[0][1] = this->size();;
+            const int n = *this->cache_n.begin();
+            if (n == 1) {
+                typename PatternModel<IndexedData,IndexedDataHandler,MapType>::iterator iter = this->begin(); 
+                while (iter != this->end()) {
+                    this->cache_grouptotaltokens[0][1] += this->valuehandler.count(iter->second);
+                    iter++;
+                }
+            }
+            return;
+        }
+
         for (std::set<int>::iterator iterc = this->cache_categories.begin(); iterc != this->cache_categories.end(); iterc++) {
             for (std::set<int>::iterator itern = this->cache_n.begin(); itern != this->cache_n.end(); itern++) {
                 std::set<Pattern> types;

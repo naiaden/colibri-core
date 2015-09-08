@@ -17,7 +17,6 @@
 #include <getopt.h>
 #include <patternmodel.h>
 #include <config.h>
-//#include <unistd.h>
 
 using namespace std;
 
@@ -38,7 +37,7 @@ void usage() {
     cerr << "\t-m <number>      Minimum pattern length (default: 1)" << endl;
     cerr << "\t-l <number>      Maximum pattern length (default: 100)" << endl;
     cerr << "\t-b <number>      Maximum back-off length (default: 100). Only makes sense to set lower than minimum pattern length and may conserve memory during training then" << endl;
-    cerr << "\t-W <number>      Word occurrence threshold (secondary threshold): only count patterns in which the words/unigrams occur at least this many times, only effective when the primary occurence threshold (-t) is higher than this threshold (default: disabled)" << endl;    
+    cerr << "\t-W <number>      Word occurrence threshold (secondary threshold): only count patterns in which the words/unigrams occur at least this many times, only effective when the primary occurrence threshold (-t) is lower than this threshold (default: disabled)" << endl;    
     cerr << "\t-s               Compute skipgrams (costs extra memory and time)" << endl;    
     cerr << "\t-y <number>      Occurrence threshold for skipgrams (overrides -t for skipgrams, defaults to -t). Skipgrams occurring less than this will be pruned. Value must be equal to or higher than -t." << endl;    
     cerr << "\t-T <number>      Skip type threshold (for use with -s): only skipgrams with at least x possible types for the skip will be considered, otherwise the skipgram will be pruned  (default: 2, unindexed models always act as if fixed to 1). Also note that only types that occur above the occurrent threshold (-t) are counted here! Requires indexed models" << endl;
@@ -142,6 +141,14 @@ void querymodel(ModelType & model, ClassEncoder * classencoder, ClassDecoder * c
     } while (!cin.eof() && (repeat)); 
 }
 
+
+void assert_file_exists(const string & filename) {
+    ifstream testf(filename);
+    if (!testf.good()) {
+        cerr << "No such file: " << filename << endl;
+        exit(2);
+    }
+}
 
 
 template<class ModelType = IndexedPatternModel<>>
@@ -421,10 +428,7 @@ int main( int argc, char *argv[] ) {
 
         int inputmodeltype = -99;
         if (!inputmodelfile.empty()) {
-            if ((access(inputmodelfile.c_str(), F_OK) == -1)) {
-                cerr << "No such file: " << inputmodelfile << endl;
-                exit(2);
-            }
+            assert_file_exists(inputmodelfile);
             inputmodeltype = getmodeltype(inputmodelfile);
             if ((inputmodeltype == INDEXEDPATTERNMODEL) && (outputmodeltype == UNINDEXEDPATTERNMODEL)) {
                 cerr << "Indexed input model will be read as unindexed because -u was set" << endl;
@@ -461,10 +465,7 @@ int main( int argc, char *argv[] ) {
                 cerr << "Reverse index: disabled" << endl;
             } else {
                 if (!reverseindexfile.empty()) {
-                    if ((access(reverseindexfile.c_str(), F_OK) == -1)) {
-                        cerr << "No such file: " << reverseindexfile << endl;
-                        exit(2);
-                    }
+                    assert_file_exists(reverseindexfile);
                     cerr << "Loading corpus data for reverse index" << endl;
                     std::ifstream * f = new ifstream(reverseindexfile.c_str());
                     if (!f->good()) {
@@ -486,10 +487,7 @@ int main( int argc, char *argv[] ) {
                 cerr << "ERROR: Corpus data file (-f) must be specified when -I is set!." << classfile << endl;
                 exit(2);
             } else {
-                if ((access(corpusfile.c_str(), F_OK) == -1)) {
-                    cerr << "No such file: " << corpusfile << endl;
-                    exit(2);
-                }
+                assert_file_exists(corpusfile);
             }
 
             if (outputmodeltype == UNINDEXEDPATTERNMODEL) {
