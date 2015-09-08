@@ -17,7 +17,7 @@
 #include <getopt.h>
 #include <patternmodel.h>
 #include <config.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 using namespace std;
 
