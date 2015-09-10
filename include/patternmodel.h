@@ -622,7 +622,8 @@ class PatternModel: public MapType, public PatternModelInterface {
             }
 
             bool iter_unigramsonly = false; //only needed for counting unigrams when we need them but they would be discarded
-            if ((options.MINLENGTH > 1) && (options.MINTOKENS_UNIGRAMS > options.MINTOKENS)) {
+            bool skipunigrams = false; //will be set to true later only when MINTOKENS=1,MINLENGTH=1 to prevent double counting of unigrams
+            if (( (options.MINLENGTH > 1) ||(options.MINTOKENS == 1)) && (options.MINTOKENS_UNIGRAMS > options.MINTOKENS)) {
                 iter_unigramsonly = true;
             }
 
@@ -692,17 +693,24 @@ class PatternModel: public MapType, public PatternModelInterface {
 
                     // *** ITERATION OVER ALL NGRAMS OF CURRENT ORDER (n) IN THE LINE/SENTENCE ***
                     for (std::vector<std::pair<PatternPointer,int>>::iterator iter = ngrams.begin(); iter != ngrams.end(); iter++) {
+
+                        if ((options.MINTOKENS == 1) && (options.MINLENGTH == 1) && (skipunigrams) && (iter->first.n() == 1)) {
+                            //prevent double counting of unigrams after a iter_unigramsonly run with mintokens==1
+                            continue;
+                        }
+
+
                         //check against constraint model 
                         if ((constrainbymodel != NULL) && (!iter_unigramsonly) && (!constrainbymodel->has(iter->first))) continue; 
 
                         found = true; //are the submatches in order? (default to true, needed for mintokens==1) 
 
                         //unigram check, special scenario, not usually processed!! (normal lookback suffices for most uses)
-                        if ((!iter_unigramsonly) && (options.MINTOKENS_UNIGRAMS> options.MINTOKENS) && (n > 1)) { 
+                        if ((!iter_unigramsonly) && (options.MINTOKENS_UNIGRAMS > options.MINTOKENS) && ((n > 1) || (options.MINTOKENS == 1)) ) { 
                             subngrams.clear();
                             iter->first.ngrams(subngrams,1); //get all unigrams
                             for (std::vector<PatternPointer>::iterator iter2 = subngrams.begin(); iter2 != subngrams.end(); iter2++) {
-                                //check if unigram exists
+                                //check if unigram reaches threshold
                                 if (this->occurrencecount(*iter2) < options.MINTOKENS_UNIGRAMS) { 
                                     found = false;
                                     break;
@@ -712,7 +720,7 @@ class PatternModel: public MapType, public PatternModelInterface {
 
 
                         //ngram (n-1) lookback
-                        if ((n > 1) && (options.MINTOKENS > 1) && (!options.DOPATTERNPERLINE) && (constrainbymodel == NULL)) { 
+                        if ((found) && (n > 1) && (options.MINTOKENS > 1) && (!options.DOPATTERNPERLINE) && (constrainbymodel == NULL)) { 
                             //check if sub-parts were counted
                             subngrams.clear();
                             backoffn = n - 1;
@@ -792,6 +800,7 @@ class PatternModel: public MapType, public PatternModelInterface {
                     this->prune(options.MINTOKENS_UNIGRAMS,1);
                     //normal behaviour next round
                     iter_unigramsonly = false; 
+                    if ((n == 1) && (options.MINLENGTH ==1)) skipunigrams = true; //prevent double counting of unigrams
                     //decrease n so it will be the same (always 1) next (and by definition last) iteration
                     n--; 
                 }
