@@ -642,7 +642,6 @@ class PatternModel: public MapType, public PatternModelInterface {
             }
             std::vector<std::pair<PatternPointer,int> > ngrams;
             std::vector<PatternPointer> subngrams;
-            std::unordered_set<Pattern> subsumed; //will be used as a buffer when PRUNENONSUBSUMED==true
             bool found;
             IndexReference ref;
             int prevsize = 0;
@@ -674,13 +673,6 @@ class PatternModel: public MapType, public PatternModelInterface {
 
                 sentence = 0; //reset
                 bool singlepass = false;
-                if (options.PRUNENONSUBSUMED) {
-                    if (options.MAXBACKOFFLENGTH < options.PRUNENONSUBSUMED) {
-                        std::cerr << "MAXBACKOFFLENGTH (-b) can not be lower than PRUNENONSUBSUMED (-p)" << std::endl;
-                        throw InternalError();
-                    }
-                    subsumed.clear();
-                }
                 while (!in->eof()) {
                     //read line
                     Pattern line = Pattern(in);
@@ -761,19 +753,6 @@ class PatternModel: public MapType, public PatternModelInterface {
                             if ((options.DOREVERSEINDEX) && (n == 1) && (reverseindex != NULL) && (!externalreverseindex)) {
                                reverseindex->push_back(ref, pattern); //TODO: make patternpointer
                             }
-                            if (options.PRUNENONSUBSUMED) {
-                                if ((!singlepass) && (n > 1) && (n <= options.PRUNENONSUBSUMED)) {
-                                    //we did a lookback earlier and can reuse that
-                                    for (std::vector<PatternPointer>::iterator iter2 = subngrams.begin(); iter2 != subngrams.end(); iter2++) subsumed.insert(Pattern(*iter2));
-                                } else if (singlepass) {
-                                    //we didn't do lookback earlier so this was not set yet
-                                    subngrams.clear();
-                                    unsigned int max_n = iter->first.n() -1;
-                                    if (max_n > options.PRUNENONSUBSUMED) max_n = options.PRUNENONSUBSUMED;
-                                    iter->first.ngrams(subngrams, max_n);
-                                    for (std::vector<PatternPointer>::iterator iter2 = subngrams.begin(); iter2 != subngrams.end(); iter2++) subsumed.insert(Pattern(*iter2));
-                                }
-                            }
                         } 
                         if (((n >= 3) || (options.MINTOKENS == 1)) //n is always 1 when mintokens == 1 !!
                                 && (options.DOSKIPGRAMS_EXHAUSTIVE)) {
@@ -801,9 +780,6 @@ class PatternModel: public MapType, public PatternModelInterface {
                     unsigned int pruned;
                     if (singlepass) {
                         pruned = this->prune(options.MINTOKENS,0); //prune regardless of size
-                        if (options.PRUNENONSUBSUMED) {
-                            pruned += this->prunenotinset(subsumed, options.MAXLENGTH-1, 0);
-                        }
                     } else {
                         pruned = this->prune(options.MINTOKENS,n); //prune only in size-class
                         if ( (!options.DOSKIPGRAMS) && (!options.DOSKIPGRAMS_EXHAUSTIVE) &&  ( n - 1 >= 1) &&  ( (n - 1) < options.MINLENGTH) && (n - 1 != options.MAXBACKOFFLENGTH) &&
@@ -812,10 +788,7 @@ class PatternModel: public MapType, public PatternModelInterface {
                             //we don't need n-1 anymore now we're done with n, it
                             //is below our threshold, prune it all (== -1)
                             this->prune(-1, n-1);
-                            if (!options.QUIET) std::cerr << "(pruned last iteration due to minimum length)" << pruned;
-                        }
-                        if (options.PRUNENONSUBSUMED) {
-                            pruned += this->prunenotinset(subsumed, options.MAXLENGTH-1, n-1);
+                            if (!options.QUIET) std::cerr << " (pruned last iteration due to minimum length)" << pruned;
                         }
                     }
                     if (!options.QUIET) std::cerr << "pruned " << pruned;
@@ -856,6 +829,27 @@ class PatternModel: public MapType, public PatternModelInterface {
             if ((options.MINLENGTH > 1) && (options.MINTOKENS_UNIGRAMS > options.MINTOKENS)) {
                 //prune the unigrams again
                 this->prune(-1,1);
+            }
+            if (options.PRUNENONSUBSUMED) {
+                if (!options.QUIET) std::cerr << "Pruning non-subsumed n-grams"  << std::endl;
+                int begin_n = options.PRUNENONSUBSUMED+1;
+                if ((begin_n > options.MAXLENGTH)) begin_n = options.MAXLENGTH;
+                for (int n = begin_n; n > 1; n--) {
+                    std::unordered_set<Pattern> subsumed; 
+                    unsigned int prunednonsubsumed = 0;
+                    PatternModel::iterator iter = this->begin(); 
+                    while (iter != this->end()) {
+                        const unsigned int pattern_n = iter->first.n();
+                        if (pattern_n == n) {
+                            subngrams.clear();
+                            iter->first.ngrams(subngrams, n-1);
+                            for (std::vector<PatternPointer>::iterator iter2 = subngrams.begin(); iter2 != subngrams.end(); iter2++) subsumed.insert(Pattern(*iter2));
+                        }
+                        iter++;
+                    };       
+                    prunednonsubsumed += this->prunenotinset(subsumed, n-1);
+                    if (!options.QUIET) std::cerr << " pruned " << prunednonsubsumed << " non-subsumed " << (n-1) << "-grams"  << std::endl;
+                }
             }
             this->posttrain(options);
         }
@@ -1387,7 +1381,7 @@ class PatternModel: public MapType, public PatternModelInterface {
             return pruned;
         }
 
-        unsigned int prunenotinset(const std::unordered_set<Pattern> & s, int maxn, int _n=0) {
+        unsigned int prunenotinset(const std::unordered_set<Pattern> & s, int _n) {
             //prune all non-subsumed patterns given a pre-computed set of subsumed patterns
             unsigned int pruned = 0;
             if (s.empty()) {
@@ -1396,16 +1390,15 @@ class PatternModel: public MapType, public PatternModelInterface {
             PatternModel::iterator iter = this->begin(); 
             while (iter != this->end()) {
                 const Pattern pattern = iter->first;
-                const unsigned int pattern_n = pattern.n();
-                if (( pattern_n <= (unsigned int) maxn) && ( (_n == 0) || (pattern_n == (unsigned int) _n) )) {
-                    if (s.find(pattern) != s.end()) {
-                        //not found in subsumed
+                if ( (_n == 0) || (pattern.n() == (unsigned int) _n) ) {
+                    if (s.find(pattern) == s.end()) {
+                        //not found in set
                         iter = this->erase(iter); 
                         pruned++;
+                        continue;
                     }
-                } else {
-                    iter++;
                 }
+                iter++;
             };       
 
             return pruned;
