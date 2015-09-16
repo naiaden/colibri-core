@@ -32,6 +32,20 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <sstream>
 
+/**
+ * @file pattern.h
+ * \brief Contains the Pattern class that is ubiquitous throughout Colibri Core.
+ *
+ * @author Maarten van Gompel (proycon) <proycon@anaproy.nl>
+ * 
+ * @section LICENSE
+ * Licensed under GPLv3
+ *
+ * @section DESCRIPTION
+ * Contains the Pattern class that is ubiquitous throughout Colibri Core
+ *
+ */
+
 const int MAINPATTERNBUFFERSIZE = 40960;
 
 
@@ -87,9 +101,8 @@ int reader_passmarker(const unsigned char c, std::istream * in);
 class PatternPointer;
 
 /**
- * Pattern class
- * Represents a pattern (ngram, skipgram or flexgram), encoded in a
- * memory-saving fashion. Allows numerous operations.
+ * \brief Pattern class, represents a pattern (ngram, skipgram or flexgram).
+ * Encoded in a memory-saving fashion. Allows numerous operations.
  */
 class Pattern {
     protected:

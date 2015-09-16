@@ -23,8 +23,20 @@
 /***********************************************************************************/
 
 /**
- * This class corresponds to a single token in a corpus. It holds the token
- * class and the position.
+ * @file patternstore.h
+ * \brief Contains lower-level containers for patterns.
+ *
+ * @author Maarten van Gompel (proycon) <proycon@anaproy.nl>
+ * 
+ * @section LICENSE
+ * Licensed under GPLv3
+ *
+ * @section DESCRIPTION
+ * Contains lower-level containers for patterns
+ */
+
+/**
+ * \brief This class corresponds to a single token in a corpus, it holds the token class and the position.
  */
 class IndexPattern { 
     public:
@@ -94,8 +106,8 @@ class IndexPattern {
 };
 
 /**
- * Class for reading an entire (class encoded) corpus into memory, providing a
- * reverse index by IndexReference. The reverse index stores positions and unigrams.
+ * \brief Class for reading an entire (class encoded) corpus into memory. 
+ * It provides a reverse index by IndexReference. The reverse index stores positions and unigrams.
  */
 class IndexedCorpus {
     protected:
@@ -244,7 +256,7 @@ class IndexedCorpus {
 /************* Base abstract container for pattern storage  ********************/
 
 /**
- * Limited virtual interface to pattern stores
+ * \brief Limited virtual interface to pattern stores.
  */
 class PatternStoreInterface {
     public:
@@ -263,7 +275,7 @@ class PatternStoreInterface {
 };
 
 /**
- * Abstract Pattern store class, not to be instantiated directly
+ * \brief Abstract Pattern store class, not to be instantiated directly.
  *
  * This is an abstract class, all Pattern storage containers are derived from
  * this. 
@@ -305,7 +317,7 @@ class PatternStore: public PatternStoreInterface {
 
 
 /**
- * Abstract class for map-like pattern stores, do not instantiate directly
+ * \brief Abstract class for map-like pattern stores, do not instantiate directly.
  * @tparam ContainerType The low-level container type used (an STL container such as set/map). 
  * @tparam ValueType The type of Value this container stores
  * @tparam ValueHandler A handler class for this type of value
@@ -439,7 +451,8 @@ class PatternMapStore: public PatternStore<ContainerType,ReadWriteSizeType> {
 typedef std::unordered_set<Pattern> t_patternset;
 
 /**
- * A pattern store in the form of an unordered set (i.e, no duplicates). Stores only patterns, no values.
+ * \brief A pattern store in the form of an unordered set (i.e, no duplicates). 
+ * Stores only patterns, no values.
  * @tparam ReadWriteSizeType The data type for addressing, determines the
  * maximum amount of patterns that can be held, only used in
  * serialisation/deserialisation
@@ -603,7 +616,8 @@ typedef std::set<Pattern> t_hashorderedpatternset;
 
 
 /**
- * A pattern store in the form of an ordered set (i.e, no duplicates). Stores only patterns, no values.
+ * \brief A pattern store in the form of an ordered set (i.e, no duplicates).
+ * Stores only patterns, no values.
  * @tparam ReadWriteSizeType The data type for addressing, determines the
  * maximum amount of patterns that can be held, only used in
  * serialisation/deserialisation
@@ -670,7 +684,7 @@ class HashOrderedPatternSet: public PatternStore<t_hashorderedpatternset,ReadWri
 
 
 /**
- * A pattern map stored patterns and their values in a hash map (unordered_map). 
+ * \brief A pattern map storing patterns and their values in a hash map (unordered_map). 
  * @tparam ValueType The type of Value this container stores
  * @tparam ValueHandler A handler class for this type of value
  * @tparam ReadWriteSizeType The data type for addressing, determines the
@@ -796,8 +810,7 @@ class ArrayValueHandler: public AbstractValueHandler<T> {
 
 
 /**
- * A complex value handler for values that are themselves pattern stores
- * (allows building nested maps)
+ * \brief A complex value handler for values that are themselves pattern stores (allows building nested maps).
  */
 template<class PatternStoreType>
 class PatternStoreValueHandler: public AbstractValueHandler<PatternStoreType> {
@@ -824,8 +837,8 @@ class PatternStoreValueHandler: public AbstractValueHandler<PatternStoreType> {
 };
 
 /**
- * A nested pattern map, useful for storing patterns that map to other
- * patterns, which in turn map to values. An example is phrase-translation tables in Machine Translation.
+ * \brief A nested pattern map, useful for storing patterns that map to other patterns, which in turn map to values.
+ * An example is phrase-translation tables in Machine Translation.
  */
 template<class ValueType,class ValueHandler=BaseValueHandler<ValueType>, class NestedSizeType = uint16_t >
 class AlignedPatternMap: public PatternMap< PatternMap<ValueType,ValueHandler,NestedSizeType>,PatternStoreValueHandler<PatternMap<ValueType,ValueHandler,NestedSizeType>>, uint64_t > {
