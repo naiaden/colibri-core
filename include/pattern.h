@@ -411,7 +411,7 @@ class PatternPointer {
      PatternPointer(unsigned char* dataref, const int bytesize) {
          data = dataref;
          if (bytesize > 255) {
-             std::cerr << "ERROR: Pattern too long for pattern pointer" << std::endl;
+             std::cerr << "ERROR: Pattern too long for pattern pointeri [" << bytesize << ",explicit]" << std::endl;
              throw InternalError();
          }
          bytes = bytesize;
@@ -421,7 +421,7 @@ class PatternPointer {
          data = ref->data;
          const size_t b = ref->bytesize();
          if (b > 255) {
-             std::cerr << "ERROR: Pattern too long for pattern pointer" << std::endl;
+             std::cerr << "ERROR: Pattern too long for pattern pointer [" << b << ",implicit]" << std::endl;
              throw InternalError();
          }
          bytes = b;
