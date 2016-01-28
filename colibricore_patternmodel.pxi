@@ -1,3 +1,5 @@
+cdef object corpus
+
 def __len__(self):
     """Returns the total number of distinct patterns in the model"""
     return self.data.size()
@@ -183,16 +185,19 @@ def __init__(self, str filename = "",PatternModelOptions options = None, constra
     :type options: PatternModelOptions
     :param constrainmodel: A model to be used as a constraint, only patterns occuring in this constraint model will be loaded/trained
     :type constrainmodel: IndexedPatternModel, UnindexedPatternModel or None (default)
-    :param reverseindex: Corpus data to use as reverse index 
+    :param reverseindex: Corpus data to use as reverse index. On indexed models, this is required for various operations, including computation of skipgrams
     :type reverseindex: IndexedCorpus or None
     """
 
+    self.corpus = None
     if reverseindex:
         self.loadreverseindex(reverseindex)
 
     if filename:
         if not options:
             options = PatternModelOptions()
+        if filename and not os.path.exists(filename):
+            raise FileNotFoundError(filename)
         self.load(filename,options, constrainmodel)
 
 def load(self, str filename, PatternModelOptions options=None, constrainmodel = None):
@@ -206,6 +211,8 @@ def load(self, str filename, PatternModelOptions options=None, constrainmodel = 
     if not options:
         options = PatternModelOptions()
 
+    if filename and not os.path.exists(filename):
+        raise FileNotFoundError(filename)
 
     if isinstance(constrainmodel, IndexedPatternModel):
         self.loadconstrainedbyindexedmodel(filename,options, constrainmodel)
@@ -218,7 +225,7 @@ def load(self, str filename, PatternModelOptions options=None, constrainmodel = 
 
 def loadreverseindex(self, IndexedCorpus reverseindex):
     self.data.reverseindex = reverseindex.data
-    self.data.externalreverseindex = True
+    self.corpus = reverseindex #so python doesn't garbage collect the python object
 
 
 cpdef loadconstrainedbyindexedmodel(self, str filename, PatternModelOptions options, IndexedPatternModel constrainmodel):
@@ -253,12 +260,18 @@ cpdef printmodel(self,ClassDecoder decoder):
 cpdef train(self, str filename, PatternModelOptions options, constrainmodel = None):
     """Train the patternmodel on the specified corpus data (a *.colibri.dat file)
 
-    :param filename: The name of the file to load, must be a valid colibri.dat file
+    :param filename: The name of the file to load, must be a valid colibri.dat file. Can be set to an empty string if a corpus was pre-loaded already.
     :type filename: str
     :param options: An instance of PatternModelOptions, containing the options used for loading
     :type options: PatternModelOptions
     """
+    if self.data.reverseindex != NULL:
+        filename = ""
+    if isinstance(self, IndexedPatternModel) and self.data.reverseindex == NULL and options.DOSKIPGRAMS:
+        raise ValueError("No reversindex was specified but you are requesting to train skipgrams, set reverseindex to an IndexedCorpus instance upon model construction")
+
     if constrainmodel:
+        assert len(constrainmodel) >= 0
         if isinstance(constrainmodel, IndexedPatternModel):
             self.trainconstrainedbyindexedmodel(filename, options, constrainmodel)
         elif isinstance(constrainmodel, UnindexedPatternModel):
@@ -269,23 +282,47 @@ cpdef train(self, str filename, PatternModelOptions options, constrainmodel = No
             self.trainconstrainedbyalignmodel(filename, options, constrainmodel)
         else:
             raise ValueError("Invalid valid for constrainmodel") #TODO: build patternmodel on the fly from an iterable of patterns or lower level patternstorage
+    elif filename:
+        self.data.train(<string> encode(filename),options.coptions, NULL)
+    elif self.data.reverseindex == NULL:
+        raise ValueError("No filename or reverseindex specified!")
     else:
-        self.data.train(encode(filename),options.coptions, NULL)
+        self.data.train(<istream*> NULL ,options.coptions, NULL)
 
 cdef cPatternModelInterface* getinterface(self):
     return self.data.getinterface()
 
 cpdef trainconstrainedbyindexedmodel(self, str filename, PatternModelOptions options, IndexedPatternModel constrainmodel):
-    self.data.train(encode(filename),options.coptions,  constrainmodel.getinterface())
+    if filename:
+        self.data.train(<string> encode(filename),options.coptions,  constrainmodel.getinterface())
+    elif self.data.reverseindex == NULL:
+        raise ValueError("No filename or reverseindex specified!")
+    else:
+        self.data.train(<istream*> NULL,options.coptions,  constrainmodel.getinterface())
 
 cpdef trainconstrainedbyunindexedmodel(self, str filename, PatternModelOptions options, UnindexedPatternModel constrainmodel):
-    self.data.train(encode(filename),options.coptions,  constrainmodel.getinterface())
+    if filename:
+        self.data.train(<string> encode(filename),options.coptions,  constrainmodel.getinterface())
+    elif self.data.reverseindex == NULL:
+        raise ValueError("No filename or reverseindex specified!")
+    else:
+        self.data.train(<istream*> NULL,options.coptions,  constrainmodel.getinterface())
 
 cpdef trainconstrainedbypatternsetmodel(self, str filename, PatternModelOptions options, PatternSetModel constrainmodel):
-    self.data.train(encode(filename),options.coptions,  constrainmodel.getinterface())
+    if filename:
+        self.data.train(<string> encode(filename),options.coptions,  constrainmodel.getinterface())
+    elif self.data.reverseindex == NULL:
+        raise ValueError("No filename or reverseindex specified!")
+    else:
+        self.data.train(<istream*> NULL,options.coptions,  constrainmodel.getinterface())
 
 cpdef trainconstrainedbyalignmodel(self, str filename, PatternModelOptions options, PatternAlignmentModel_float constrainmodel):
-    self.data.train(encode(filename),options.coptions,  constrainmodel.getinterface())
+    if filename:
+        self.data.train(<string> encode(filename),options.coptions,  constrainmodel.getinterface())
+    elif self.data.reverseindex == NULL:
+        raise ValueError("No filename or reverseindex specified!")
+    else:
+        self.data.train(<istream*>  NULL,options.coptions,  constrainmodel.getinterface())
 
 cpdef report(self):
     """Print a detailed statistical report to stdout"""
@@ -309,11 +346,8 @@ cpdef prune(self, int threshold, int n=0):
 
 
 def reverseindex(self):
-    """Returns the reverseindex associated with the model, this will be an instance of IndexedCorpus. Use getreversindex( (sentence, token) ) instead if you want to query the reverse index."""
-    ri = IndexedCorpus()
-    ri.bind(self.data.reverseindex)
-    ri.frommodel = self #to prevent segfaults: reference to this pattern model, IndexedCorpus can not live without its parent model as it shares the same data, prevent Python garbage collector from cleaning it up while we still exist
-    return ri
+    """Returns the reverseindex associated with the model, this will be an instance of IndexedCorpus. Use getreverseindex( (sentence, token) ) instead if you want to query the reverse index."""
+    return self.corpus
 
 
 def getreverseindex(self, indexreference):
@@ -324,15 +358,17 @@ def getreverseindex(self, indexreference):
 
     if not isinstance(indexreference, tuple) or not len(indexreference) == 2:
         raise ValueError("Expected tuple")
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverse index loaded")
 
     cdef int sentence = indexreference[0]
     cdef int token = indexreference[1]
     cdef cIndexReference ref = cIndexReference(sentence, token)
-    cdef vector[cPattern] results = self.data.getreverseindex(ref)
-    cdef vector[cPattern].iterator resit = results.begin()
+    cdef unordered_set[cPatternPointer] results = self.data.getreverseindex(ref)
+    cdef unordered_set[cPatternPointer].iterator resit = results.begin()
     cdef cPattern cpattern
     while resit != results.end():
-        cpattern = deref(resit)
+        cpattern = deref(resit).pattern()
         pattern = Pattern()
         pattern.bind(cpattern)
         yield pattern
@@ -344,14 +380,18 @@ def getreverseindex_bysentence(self, int sentence):
     :param sentence: a sentence number
     """
 
-    cdef vector[pair[cIndexReference,cPattern]] results = self.data.getreverseindex_bysentence(sentence)
-    cdef vector[pair[cIndexReference,cPattern]].iterator resit = results.begin()
-    cdef pair[cIndexReference,cPattern] p
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverse index loaded")
+
+    cdef vector[pair[cIndexReference,cPatternPointer]] results = self.data.getreverseindex_bysentence(sentence)
+    cdef vector[pair[cIndexReference,cPatternPointer]].iterator resit = results.begin()
+    cdef pair[cIndexReference,cPatternPointer] p
     cdef cPattern cpattern
     while resit != results.end():
         p = deref(resit)
         pattern = Pattern()
-        pattern.bind(p.second)
+        cpattern = p.second.pattern()
+        pattern.bind(cpattern)
         yield (p.first.sentence, p.first.token), pattern
         inc(resit)
 
@@ -390,3 +430,10 @@ def filter(self, unsigned int threshold, int category = 0, int size = 0):
             pattern = Pattern()
             pattern.bind(cpattern)
             yield pattern, count
+
+def getinstance(self, tuple pos, Pattern pattern):
+    """Gets a specific instance of a pattern (skipgram or flexgram), at the specified position. Raises a KeyError when not found."""
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverse index loaded")
+    return self.corpus.getinstance(pos, pattern)
+    

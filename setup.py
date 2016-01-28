@@ -28,10 +28,16 @@ if 'CXX' in os.environ:
     cxx = os.environ['CXX']
 
 
-compilerversionfile = os.path.join(ROOTDIR,"compilerversion")
-r = os.system(cxx + " --version > " + compilerversionfile)
-if r != 0:
-    print("No C++ Compiler found!",file=sys.stderr)
+compilerfound = False
+for compiler in (cxx,'gcc','clang'):
+    compilerversionfile = os.path.join(ROOTDIR,"compilerversion")
+    r = os.system(compiler + " --version > " + compilerversionfile)
+    if r == 0:
+        compilerfound = True
+        break
+
+if not compilerfound:
+    print("No C++ Compiler found! Set the CXX environment variable to point to your compiler",file=sys.stderr)
     sys.exit(2)
 
 compilerversion = open(compilerversionfile,'r').read()
@@ -151,7 +157,7 @@ if ('install' in sys.argv[1:] or 'build_ext' in sys.argv[1:]) and not '--help' i
         print("--------------------------------------------------------------------------------------------------------------------\n",file=sys.stderr)
 
 extensions = [ Extension("colibricore",
-                ["unordered_map.pxd", "colibricore_classes.pxd", "colibricore_wrapper.pyx"],
+                ["unordered_set.pxd","unordered_map.pxd", "colibricore_classes.pxd", "colibricore_wrapper.pyx"],
                 language='c++',
                 include_dirs=includedirs,
                 library_dirs=libdirs,
@@ -168,7 +174,7 @@ setup(
     license = "GPL",
     keywords = "nlp computational_linguistics frequency ngram skipgram pmi cooccurrence linguistics",
     long_description=read('README.rst'),
-    version = '1.0.5',
+    version = '2.1.2',
     ext_modules = extensions,
     cmdclass = {'build_ext': build_ext},
     classifiers=[

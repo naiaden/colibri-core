@@ -14,29 +14,37 @@ from libcpp.map cimport map as stdmap
 from libcpp.vector cimport vector
 from libcpp cimport bool
 from unordered_map cimport unordered_map
+from unordered_set cimport unordered_set
 from libcpp.utility cimport pair
 from libc.stdint cimport *
 
 cdef extern from "<iostream>" namespace "std":
     cdef cppclass ostream:
         pass
+    cdef cppclass istream:
+        pass
 
     extern ostream cout
 
 
 cdef extern from "pattern.h":
+    cdef cppclass PatternPointer #forward declaration
+
     cdef cppclass Pattern:
         unsigned char * data
         Pattern() nogil
-        Pattern(Pattern&, int,int) nogil
+        Pattern(Pattern&, unsigned int,unsigned int) nogil
         Pattern(Pattern&) nogil
+        #Pattern(PatternPointer&) nogil
+        #Pattern(PatternPointer&, int,int) nogil
         string tostring(ClassDecoder&) nogil
-        int n() nogil
-        int bytesize() nogil
+        unsigned int n() nogil
+        unsigned int bytesize() nogil
         int skipcount() nogil
         int category() nogil
         int hash() nogil
         bint operator==(Pattern&) nogil
+        bint operator==(PatternPointer&) nogil
         bint operator<(Pattern&) nogil
         bint operator>(Pattern&) nogil
         Pattern operator+(Pattern&) nogil
@@ -46,15 +54,44 @@ cdef extern from "pattern.h":
         int subngrams(vector[Pattern]& container,int minn=0,int maxn=9)
         bool contains(Pattern&) nogil
         Pattern toflexgram() nogil
-        vector[int] tovector() nogil
+        vector[unsigned int] tovector() nogil
         void set(unsigned char *,int ) nogil
         bool isgap(int) nogil
         bool isskipgram() nogil
         bool isflexgram() nogil
         bool unknown() nogil
         Pattern reverse() nogil
+        PatternPointer getpointer() nogil
 
     Pattern patternfromfile(const string&)
+
+    cdef cppclass PatternPointer:
+        PatternPointer() nogil
+        PatternPointer(Pattern&, unsigned int,unsigned int) nogil
+        PatternPointer(Pattern&) nogil
+        PatternPointer(PatternPointer&, unsigned int,unsigned int) nogil
+        PatternPointer(PatternPointer&) nogil
+        Pattern pattern() nogil
+        string tostring(ClassDecoder&) nogil
+        unsigned int n() nogil
+        unsigned int bytesize() nogil
+        int skipcount() nogil
+        int category() nogil
+        int hash() nogil
+        bint operator==(PatternPointer&) nogil
+        bint operator==(Pattern&) nogil
+        int ngrams(vector[PatternPointer]& container,int n)
+        int parts(vector[PatternPointer]& container) nogil
+        int gaps(vector[pair[int,int]]& container) nogil
+        int subngrams(vector[PatternPointer]& container,int minn=0,int maxn=9)
+        PatternPointer toflexgram() nogil
+        vector[unsigned int] tovector() nogil
+        void set(unsigned char *,int ) nogil
+        bool isgap(int) nogil
+        bool isskipgram() nogil
+        bool isflexgram() nogil
+        bool unknown() nogil
+        PatternPointer reverse() nogil
 
 
 
@@ -184,16 +221,16 @@ cdef extern from "patternstore.h":
         void read(string filename) nogil
         void write(string filename) nogil
 
-    cdef cppclass IndexPattern:
-        IndexReference ref
-        Pattern pattern()
+    ctypedef pair[IndexReference,PatternPointer] IndexPattern
 
     cdef cppclass IndexedCorpus:
         cppclass iterator:
-            IndexPattern & operator*() nogil
             iterator operator++() nogil
             bint operator==(iterator) nogil
             bint operator!=(iterator) nogil
+            PatternPointer patternpointer() nogil
+            Pattern pattern() nogil #actually returns a patternpointer too but can be converted this way
+            IndexReference index() nogil
 
         size_t size() nogil
         iterator begin() nogil
@@ -201,12 +238,13 @@ cdef extern from "patternstore.h":
         IndexedCorpus() nogil
         void load(string, bool) nogil
         bool has(IndexReference&) nogil
-        Pattern getpattern(IndexReference&,int)  except +KeyError
-        vector[IndexReference] findpattern(Pattern&,int) nogil
+        Pattern getpattern(IndexReference&,int)  except +KeyError #PatternPointer in reality
+        vector[pair[IndexReference,PatternPointer]] findpattern(Pattern,int sentence,bool instantiate) nogil #high level
+        PatternPointer getinstance(IndexReference begin, PatternPointer pattern) nogil #low level (alias for findpattern), returns ngrams since outputcategory uses default parameter NGRAM  in C++ code
         int operator[](IndexReference&) nogil except +KeyError
         int sentencelength(int) nogil
         int sentences() nogil
-        Pattern getsentence(int) nogil except +KeyError
+        Pattern getsentence(int) nogil except +KeyError #PatternPointer in reality
 
     cdef cppclass AlignedPatternMap[ValueType, ValueHandler, NestedSizeType]:
         cppclass iterator:
@@ -230,9 +268,8 @@ cdef extern from "patternstore.h":
 
     extern Pattern SKIPPATTERN
     extern Pattern FLEXPATTERN
-    extern Pattern BEGINPATTERN
-    extern Pattern ENDPATTERN
     extern Pattern UNKPATTERN
+    extern Pattern BOUNDARYPATTERN
 
 
 cdef extern from "classdecoder.h":
@@ -341,10 +378,10 @@ cdef extern from "patternmodel.h":
         void add(Pattern&, ValueType*, IndexReference&)
 
         IndexedCorpus * reverseindex
-        bool externalreverseindex
 
         PatternModelInterface * getinterface() nogil
         void train(string filename, PatternModelOptions options, PatternModelInterface *)
+        void train(istream*, PatternModelOptions options, PatternModelInterface *)
 
         unsigned int totaloccurrencesingroup(int category, int n)
         unsigned int totalpatternsingroup(int category, int n)
@@ -361,12 +398,15 @@ cdef extern from "patternmodel.h":
         void load(string, PatternModelOptions, PatternModelInterface*) nogil except +IOError
         void write(string) nogil except +IOError
         void printmodel(ostream*, ClassDecoder&) nogil
-        void printpattern(ostream*, ClassDecoder&, Pattern&) nogil
+        void printpattern(ostream*, ClassDecoder&, Pattern&,bool instantiate=false,bool eol=true) nogil
         void report(ostream*) nogil
         void histogram(stdmap[unsigned int,unsigned int] & hist, unsigned int threshold, unsigned int cap,int,unsigned int)
         void histogram(ostream*) nogil
         unsigned int topthreshold(int,int,int) nogil
         void outputrelations(Pattern&,ClassDecoder&, ostream*)
+
+        
+
 
         t_relationmap getsubchildren(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
         t_relationmap getsubparents(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
@@ -379,8 +419,10 @@ cdef extern from "patternmodel.h":
         t_relationmap getleftcooc(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
         t_relationmap getrightcooc(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
 
-        vector[Pattern] getreverseindex(IndexReference&)
-        vector[pair[IndexReference,Pattern]] getreverseindex_bysentence(int)
+        unordered_set[PatternPointer] getreverseindex(IndexReference&)
+        vector[pair[IndexReference,PatternPointer]] getreverseindex_bysentence(int)
+
+        Pattern getinstance(IndexReference & begin, const Pattern & pattern) except +KeyError 
 
     cdef cppclass IndexedPatternModel[MapType]:
         cppclass iterator:
@@ -404,6 +446,7 @@ cdef extern from "patternmodel.h":
 
         PatternModelInterface * getinterface() nogil
         void train(string filename, PatternModelOptions options, PatternModelInterface *)
+        void train(istream*, PatternModelOptions options, PatternModelInterface *)
 
         IndexedCorpus * reverseindex
         bool externalreverseindex
@@ -423,7 +466,7 @@ cdef extern from "patternmodel.h":
         void load(string, PatternModelOptions, PatternModelInterface* ) nogil except +IOError
         void write(string) nogil except +IOError
         void printmodel(ostream*, ClassDecoder&) nogil
-        void printpattern(ostream*, ClassDecoder&, Pattern&) nogil
+        void printpattern(ostream*, ClassDecoder&, Pattern&,bool instantiate=false,bool eol=true) nogil
         void report(ostream*) nogil
         void histogram(ostream*) nogil
         void histogram(stdmap[unsigned int,unsigned int] & hist, unsigned int threshold , unsigned int cap,int,unsigned int )
@@ -432,8 +475,11 @@ cdef extern from "patternmodel.h":
 
         void add(Pattern&, IndexedData*, IndexReference&)
 
-        vector[Pattern] getreverseindex(IndexReference&)
-        vector[pair[IndexReference,Pattern]] getreverseindex_bysentence(int)
+        unordered_set[PatternPointer] getreverseindex(IndexReference&)
+        vector[pair[IndexReference,PatternPointer]] getreverseindex_bysentence(int)
+
+        int computeflexgrams_fromskipgrams() nogil
+        int computeflexgrams_fromcooc(double) nogil
 
         t_relationmap getsubchildren(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
         t_relationmap getsubparents(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
@@ -445,6 +491,8 @@ cdef extern from "patternmodel.h":
         t_relationmap getcooc(Pattern & pattern,  unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
         t_relationmap getleftcooc(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
         t_relationmap getrightcooc(Pattern & pattern, unsigned int occurrencethreshold, int category, unsigned int size) except +KeyError
+
+        Pattern getinstance(IndexReference & begin, const Pattern & pattern) except +KeyError 
 
 cdef extern from "alignmodel.h":
     cdef cppclass PatternAlignmentModel[FeatureType]:
@@ -458,8 +506,8 @@ cdef extern from "alignmodel.h":
         PatternAlignmentModel() nogil
         unsigned int types() nogil
         unsigned int tokens() nogil
-        int type() nogil
-        int version() nogil
+        int getmodeltype()
+        int getmodelversion()
         int maxlength() nogil
         int minlength() nogil
         void add(Pattern&, Pattern&, vector[FeatureType]&)

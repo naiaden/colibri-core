@@ -14,8 +14,9 @@ from libcpp cimport bool
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref, preincrement as inc
 from cython import address
-from colibricore_classes cimport ClassEncoder as cClassEncoder, ClassDecoder as cClassDecoder, Pattern as cPattern, IndexedData as cIndexedData, IndexReference as cIndexReference, PatternMap as cPatternMap, HashOrderedPatternMap as cHashOrderedPatternMap, PatternSet as cPatternSet, PatternModelOptions as cPatternModelOptions, PatternSetModel as cPatternSetModel, PatternModel as cPatternModel,IndexedPatternModel as cIndexedPatternModel, IndexedDataHandler as cIndexedDataHandler, BaseValueHandler as cBaseValueHandler, cout, IndexedCorpus as cIndexedCorpus, BEGINPATTERN as cBEGINPATTERN, ENDPATTERN as cENDPATTERN, SKIPPATTERN as cSKIPPATTERN, FLEXPATTERN as cFLEXPATTERN, UNKPATTERN as cUNKPATTERN, AlignedPatternMap as cAlignedPatternMap, PatternModelInterface as cPatternModelInterface, PatternFeatureVector as cPatternFeatureVector, PatternFeatureVectorMap as cPatternFeatureVectorMap, PatternAlignmentModel as cPatternAlignmentModel, patternfromfile as cpatternfromfile, t_relationmap, t_relationmap_double, t_relationmap_iterator, t_relationmap_double_iterator
+from colibricore_classes cimport ClassEncoder as cClassEncoder, ClassDecoder as cClassDecoder, Pattern as cPattern, PatternPointer as cPatternPointer, IndexedData as cIndexedData, IndexReference as cIndexReference, PatternMap as cPatternMap, HashOrderedPatternMap as cHashOrderedPatternMap, PatternSet as cPatternSet, PatternModelOptions as cPatternModelOptions, PatternSetModel as cPatternSetModel, PatternModel as cPatternModel,IndexedPatternModel as cIndexedPatternModel, IndexedDataHandler as cIndexedDataHandler, BaseValueHandler as cBaseValueHandler, cout, IndexedCorpus as cIndexedCorpus, SKIPPATTERN as cSKIPPATTERN, FLEXPATTERN as cFLEXPATTERN, UNKPATTERN as cUNKPATTERN, BOUNDARYPATTERN as cBOUNDARYPATTERN, AlignedPatternMap as cAlignedPatternMap, PatternModelInterface as cPatternModelInterface, PatternFeatureVector as cPatternFeatureVector, PatternFeatureVectorMap as cPatternFeatureVectorMap, PatternAlignmentModel as cPatternAlignmentModel, patternfromfile as cpatternfromfile, t_relationmap, t_relationmap_double, t_relationmap_iterator, t_relationmap_double_iterator, istream
 from unordered_map cimport unordered_map
+from unordered_set cimport unordered_set
 from libc.stdint cimport *
 from libcpp.map cimport map as stdmap
 from libcpp.utility cimport pair
@@ -26,6 +27,9 @@ from sys import version
 
 
 PYTHON2=(version[0] == '2')
+if PYTHON2:
+    FileNotFoundError = IOError
+
 def encode(s):
     if PYTHON2:
         if isinstance(s, unicode):
@@ -177,12 +181,6 @@ cdef class Pattern:
     cdef bind(self, cPattern& cpattern):
         self.cpattern = cpattern
 
-    def bindbegin(self):
-        self.cpattern = cBEGINPATTERN
-
-    def bindend(self):
-        self.cpattern = cENDPATTERN
-
     def bindunk(self):
         self.cpattern = cUNKPATTERN
 
@@ -191,6 +189,9 @@ cdef class Pattern:
 
     def bindflex(self):
         self.cpattern = cFLEXPATTERN
+
+    def bindboundary(self):
+        self.cpattern = cBOUNDARYPATTERN
 
     def tostring(self, ClassDecoder decoder):
         """Convert a Pattern back to a str
@@ -283,7 +284,11 @@ cdef class Pattern:
         :rtype: a Pattern instance
         """
 
+        cdef int start
+        cdef int stop
         cdef cPattern c_pattern
+
+        newpattern = Pattern()
         if isinstance(item, slice):
             start = item.start
             stop = item.stop
@@ -292,14 +297,14 @@ cdef class Pattern:
             if not start:
                 start = 0
             c_pattern = cPattern(self.cpattern, start, stop - start)
-            newpattern = Pattern()
             newpattern.bind(c_pattern)
             return newpattern
         else:
             if item < 0:
-                item = len(self) + item
-            c_pattern = cPattern(self.cpattern, item, 1)
-            newpattern = Pattern()
+                start = len(self) + item
+            else:
+                start = item
+            c_pattern = cPattern(self.cpattern, start, 1)
             newpattern.bind(c_pattern)
             return newpattern
 
@@ -443,7 +448,7 @@ cdef class Pattern:
 
     def tolist(self):
         """Returns a list representing the raw classes in the pattern"""
-        cdef vector[int] state = self.cpattern.tovector()
+        cdef vector[unsigned int] state = self.cpattern.tovector()
         return state
 
     def __bytes__(self):
@@ -829,6 +834,8 @@ cdef class PatternSetModel:
         """
         if options is None:
             options = PatternModelOptions()
+        if filename and not os.path.exists(filename):
+            raise FileNotFoundError(filename)
         self.data.load(encode(filename), options.coptions)
 
     def read(self, str filename, PatternModelOptions options=None):
@@ -878,10 +885,11 @@ cdef class PatternModelOptions:
     * MINSKIPTYPES - Minimum amount of different skip content types
     * DOREVERSEINDEX - Build reverse index? (default: True)
     * DOPATTERNPERLINE - Assume each line holds one single pattern.
-    * MINTOKENS_UNIGRAMS - Word occurrence threshold (secondary threshold): only count patterns in which the words/unigrams occur at least this many times, only effective when the       primary
+    * MINTOKENS_UNIGRAMS - Word occurrence threshold (secondary threshold): only count patterns in which the words/unigrams occur at least this many times, only effective when the      primary
     * DOREMOVENGRAMS - Remove n-grams from the model
     * DOREMOVESKIPGRAMS - Remove skipgrams from the model
     * DOREMOVEFLEXGRAMS - Remove flexgrams from the model
+    * DORESET - Reset all counts before training
     * DEBUG
     * QUIET (default: False)
 
@@ -1028,17 +1036,15 @@ cdef class IndexedCorpus:
         return pattern
 
     def __contains__(self, tuple indexreference):
-        """Test if the indexreference, a (sentence,tokenoffset) tuple is in the corpus. This is a much slower lookup than using a pattern model!!"""
+        """Test if the indexreference, a (sentence,tokenoffset) tuple is in the corpus."""
         return self.has(indexreference)
 
     def __iter__(self):
         """Iterate over all indexes in the corpus, generator over (sentence, tokenoffset) tuples"""
-        it = self.data.begin()
-        cdef cPattern cpattern
-        cdef cIndexReference ref
-        while it != self.data.end():
-            ref = deref(it).ref
-            yield (ref.sentence, ref.token)
+        cdef cIndexedCorpus.iterator it = self.data.begin()
+        cdef cIndexedCorpus.iterator endit = self.data.end()
+        while it != endit:
+            yield (it.index().sentence, it.index().token)
             inc(it)
 
     def __getitem__(self, item):
@@ -1065,36 +1071,50 @@ cdef class IndexedCorpus:
         cdef cPattern cpattern
         cdef cIndexReference ref
         while it != self.data.end():
-            cpattern = deref(it).pattern()
-            ref = deref(it).ref
+            cpattern = it.pattern()
+            ref = it.index()
             pattern = Pattern()
             pattern.bind(cpattern)
             yield ( (ref.sentence, ref.token), pattern )
             inc(it)
 
-    def findpattern(self, Pattern pattern, int maxmatches=0):
+    def findpattern(self, Pattern pattern, int sentence = 0, bool instantiate = False):
         """Generator over the indexes in the corpus where this pattern is found. Note that this is much slower than using the forward index on an IndexedPatternModel!!!
 
         :param pattern: The pattern to find
         :type pattern: Pattern
-        :param maxmatches: The maximum number of patterns to return (0 = unlimited)
-        :type maxmatches: int
-        :rtype: generator over (sentence, tokenoffset) tuples
+        :param sentence: Set to a non-zero value to limit the search to a single sentence (default: 0, search entire corpus)
+        :type sentence: int
+        :param instantiate: Instantiate all skipgrams and flexgrams (i.e, return n-grams) (default: False)
+        :type instantiate: bool
+        :rtype: generator over ((sentence, tokenoffset),pattern) tuples
         """
 
-        cdef vector[cIndexReference] matches
-        cdef vector[cIndexReference].iterator it
+        cdef cPattern cpattern
         cdef cIndexReference ref
-        matches = self.data.findpattern(pattern.cpattern, maxmatches)
+        matches = self.data.findpattern(pattern.cpattern,sentence,instantiate)
         it = matches.begin()
         while it != matches.end():
-            ref = deref(it)
-            yield (ref.sentence, ref.token)
+            ref = deref(it).first
+            cpattern = deref(it).second.pattern()
+            foundpattern = Pattern()
+            foundpattern.bind(cpattern)
+            yield ((ref.sentence, ref.token), foundpattern)
             inc(it)
+
+    def getinstance(self, tuple pos, Pattern pattern):
+        """Gets a specific instance of a pattern (skipgram or flexgram), at the specified position. Raises a KeyError when not found."""
+        cdef cIndexReference ref = cIndexReference(pos[0],pos[1])
+        cdef cPatternPointer ppin = pattern.cpattern.getpointer()
+        cdef cPatternPointer ppout = self.data.getinstance(ref,ppin)
+        foundpattern = Pattern()
+        cdef cPattern cpattern = ppout.pattern()
+        foundpattern.bind(cpattern)
+        return foundpattern
 
 
     def sentencecount(self):
-        """Returns the number of sentencecount. ( The C++ equivalent is called sentences() ) """
+        """Returns the number of sentences. ( The C++ equivalent is called sentences() ) """
         return self.data.sentences()
 
 
@@ -1299,11 +1319,11 @@ cdef class PatternAlignmentModel_float:
 
     def type(self):
         """Returns the model type (10 = UNINDEXED, 20 = INDEXED)"""
-        return self.data.type()
+        return self.data.getmodeltype()
 
     def version(self):
         """Return the version of the model type"""
-        return self.data.version()
+        return self.data.getmodelversion()
 
     cdef has(self, Pattern pattern):
         if not isinstance(pattern, Pattern):
@@ -1400,6 +1420,8 @@ cdef class PatternAlignmentModel_float:
         """
         if options is None:
             options = PatternModelOptions()
+        if filename and not os.path.exists(filename):
+            raise FileNotFoundError(filename)
         self.data.load(encode(filename), options.coptions)
 
     def read(self, str filename, PatternModelOptions options=None):
@@ -1417,13 +1439,11 @@ cdef class PatternAlignmentModel_float:
     cdef cPatternModelInterface* getinterface(self):
         return self.data.getinterface()
 
-BEGINPATTERN = Pattern()
-BEGINPATTERN.bindbegin()
-ENDPATTERN = Pattern()
-ENDPATTERN.bindend()
 UNKPATTERN = Pattern()
 UNKPATTERN.bindunk()
 SKIPPATTERN = Pattern()
 SKIPPATTERN.bindskip()
 FLEXPATTERN = Pattern()
 FLEXPATTERN.bindflex()
+BOUNDARYPATTERN = Pattern()
+BOUNDARYPATTERN.bindboundary()

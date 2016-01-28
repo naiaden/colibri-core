@@ -62,9 +62,9 @@ def covered(self, indexreference):
     cdef int token = indexreference[1]
     cdef cIndexReference ref = cIndexReference(sentence, token)
     cdef cIndexReference ref2
-    cdef vector[cPattern] results = self.data.getreverseindex(ref)
-    cdef vector[cPattern] results2
-    cdef vector[cPattern].iterator resit
+    cdef unordered_set[cPatternPointer] results = self.data.getreverseindex(ref)
+    cdef unordered_set[cPatternPointer] results2
+    cdef unordered_set[cPatternPointer].iterator resit
     cdef cPattern cpattern
     if not results.empty():
         return True
@@ -75,7 +75,7 @@ def covered(self, indexreference):
                 results2 = self.data.getreverseindex(ref2)
                 resit = results2.begin()
                 while resit != results2.end():
-                    cpattern = deref(resit)
+                    cpattern = deref(resit).pattern()
                     if cpattern.n() >= token+1:
                         return True
                     inc(resit)
@@ -109,6 +109,9 @@ def getsubchildren(self, Pattern pattern, int occurrencethreshold = 0, int categ
     :type size: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrences for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getsubchildren(pattern.cpattern, occurrencethreshold, category, size)
     cdef t_relationmap_iterator relit = relations.begin()
 
@@ -133,6 +136,9 @@ def getsubparents(self, Pattern pattern, int occurrencethreshold = 0, int catego
     :type size: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrences for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getsubparents(pattern.cpattern, occurrencethreshold, category, size)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -156,6 +162,9 @@ def getleftneighbours(self, Pattern pattern, int occurrencethreshold = 0, int ca
     :type size: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrences for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getleftneighbours(pattern.cpattern, occurrencethreshold, category, size,cutoff)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -179,6 +188,9 @@ def getrightneighbours(self, Pattern pattern, int occurrencethreshold = 0, int c
     :type size: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrences for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getrightneighbours(pattern.cpattern, occurrencethreshold, category, size,cutoff)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -197,6 +209,9 @@ def getskipcontent(self, Pattern pattern):
     :type pattern: Pattern
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrence for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getskipcontent(pattern.cpattern)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -217,6 +232,9 @@ def gettemplates(self, Pattern pattern, int occurrencethreshold = 0):
     :type occurrencethreshold: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrence for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.gettemplates(pattern.cpattern, occurrencethreshold)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -237,6 +255,9 @@ def getinstances(self, Pattern pattern, int occurrencethreshold = 0):
     :type occurrencethreshold: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrence for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getinstances(pattern.cpattern, occurrencethreshold)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -260,6 +281,9 @@ def getcooc(self, Pattern pattern,  int occurrencethreshold = 0, int category = 
     :type size: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrence for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getcooc(pattern.cpattern, occurrencethreshold, category, size)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -283,6 +307,9 @@ def getleftcooc(self, Pattern pattern, int occurrencethreshold = 0, int category
     :type size: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrence for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getleftcooc(pattern.cpattern, occurrencethreshold, category, size)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -306,6 +333,9 @@ def getrightcooc(self, Pattern pattern, int occurrencethreshold = 0, int categor
     :type size: int
     :rtype: generator over (Pattern,value) tuples. The values correspond to the number of occurrence for this particularrelationship
     """
+    if self.data.reverseindex == NULL:
+        raise ValueError("No reverseindex was specified but this method requires it, set reverseindex to an IndexedCorpus instance upon model construction")
+
     cdef t_relationmap  relations = self.data.getrightcooc(pattern.cpattern, occurrencethreshold, category, size)
     cdef t_relationmap_iterator relit = relations.begin()
     cdef cPattern cpattern
@@ -317,3 +347,11 @@ def getrightcooc(self, Pattern pattern, int occurrencethreshold = 0, int categor
         pattern.bind(cpattern)
         yield (pattern,value)
         inc(relit)
+
+def computeflexgrams_fromskipgrams(self):
+    """Compute flexgrams from skipgrams in the model. Returns the number of flexgrams found."""
+    return self.data.computeflexgrams_fromskipgrams()
+
+def computeflexgrams_fromcooc(self,double threshold):
+    """Compute flexgrams based on  co-occurence. The threshold is expressed in normalised pointwise mutual information. Returns the number of flexgrams found. Flexgrams contain at only one gap using this method."""
+    return self.data.computeflexgrams_fromcooc(threshold)
