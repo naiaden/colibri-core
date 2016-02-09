@@ -394,7 +394,35 @@ class PatternPointer {
                     //first bit high = flexgram, right-aligned, 0 = gap
                     //first bit low = skipgram, right-aligned, 0 = gap , max skipgram length 31 tokens
     
-	 PatternPointer() {
+
+
+
+     template<class Archive>
+     void save(Archive & ar, const unsigned int version) const {
+         //std::cerr << "c " << n() << std::endl;
+         std::ostringstream oss;
+         this->write(&oss);
+         std::string output = oss.str();
+         ar & output;
+     }
+     template<class Archive>
+     void load(Archive & ar, const unsigned int version) {
+         std::string input;
+         ar & input;
+         std::istringstream iss(input);
+         const unsigned char cocoVersion = 2;
+         ::new(this)PatternPointer(&iss, false, cocoVersion, nullptr, true);
+         //unsigned char* buffer = new unsigned char[9999];
+         //::new(this)Pattern(&iss, buffer, 9999, false, false);
+         //delete buffer;
+         //std::cerr << "l " << n() << std::endl;
+     }
+     BOOST_SERIALIZATION_SPLIT_MEMBER()
+
+
+
+
+        PatternPointer() {
 		data = NULL;
 		bytes = 0;
 		mask = 0;
