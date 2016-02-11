@@ -572,6 +572,9 @@ class PatternModel: public MapType, public PatternModelInterface {
             const bool doflexgrams = (matchflexgramhelper.empty() && hasflexgrams);
             if (!doskipgrams && !doflexgrams) return;
 
+            unsigned int skipgramcount = 0;
+            unsigned int flexgramcount = 0;
+
             for (iterator iter = this->begin(); iter != this->end(); iter++) {
                 const PatternPointer pattern = iter->first;
                 const PatternCategory category = pattern.category();
@@ -579,8 +582,10 @@ class PatternModel: public MapType, public PatternModelInterface {
                 if (!firstword.unknown() && (!firstword.isgap(0))) {
                     if ((category == SKIPGRAM) && (doskipgrams)) {
                         matchskipgramhelper[firstword].push_back(std::pair<uint32_t,unsigned char>(pattern.getmask(),pattern.n()));
+                        skipgramcount++;
                     } else if ((category == FLEXGRAM) && (doflexgrams)) {
                         matchflexgramhelper[firstword].push_back(pattern);
+                        flexgramcount++;
                     }
                 }
             }
@@ -590,8 +595,8 @@ class PatternModel: public MapType, public PatternModelInterface {
             for (t_matchflexgramhelper::iterator iter = matchflexgramhelper.begin(); iter != matchflexgramhelper.end(); iter++) {
                 iter->second.shrink_to_fit();
             }
-            //if (!quiet && !matchskipgramhelper.empty()) std::cerr << "(" << matchskipgramhelper.size() << " skipgrams in constraint model)" << std::endl;
-            //if (!quiet && !matchflexgramhelper.empty()) std::cerr << "(" << matchflexgramhelper.size() << " flexgrams in constraint model)" << std::endl;
+            if (!quiet && !matchskipgramhelper.empty()) std::cerr << "(helper structure has " << matchskipgramhelper.size() << " unigrams mapping to " << skipgramcount << " skipgrams total)" << std::endl;
+            if (!quiet && !matchflexgramhelper.empty()) std::cerr << "(helper structure has " << matchflexgramhelper.size() << " unigrams mapping to " << flexgramcount << " flexgrams total)" << std::endl;
         }
     public:
         IndexedCorpus * reverseindex; ///< Pointer to the reverse index and corpus data for this model (or NULL)
@@ -1560,7 +1565,7 @@ class PatternModel: public MapType, public PatternModelInterface {
                                 result.insert(ngram);
                         }
 
-                        if ((includeskipgrams || includeflexgrams) && (n >= 3))  {
+                        if ((includeskipgrams) && (n >= 3))  {
                             
                             //(we can't use gettemplates() because
                             //gettemplates() depends on us to do the actual
@@ -1571,15 +1576,13 @@ class PatternModel: public MapType, public PatternModelInterface {
                             const PatternPointer firstword = PatternPointer(ngram,0,1);
 
 
-                            if (includeskipgrams) {
-                                for (t_matchskipgramhelper::iterator iter = this->matchskipgramhelper.find(firstword); iter != this->matchskipgramhelper.end(); iter++) {
-                                    for (std::vector<std::pair<uint32_t,unsigned char>>::iterator iter2 = iter->second.begin(); iter2 != iter->second.end(); iter2++) {
-                                        if (n == iter2->second) {
-                                            PatternPointer skipgram = ngram;
-                                            skipgram.mask = iter2->first;
-                                            if ( ((occurrencecount == 0) && this->has(skipgram)) || ((occurrencecount != 0) && (this->occurrencecount(skipgram) >= (unsigned int) occurrencecount)) ) {
-                                                result.insert(skipgram);
-                                            }
+                            for (t_matchskipgramhelper::iterator iter = this->matchskipgramhelper.find(firstword); iter != this->matchskipgramhelper.end(); iter++) {
+                                for (std::vector<std::pair<uint32_t,unsigned char>>::iterator iter2 = iter->second.begin(); iter2 != iter->second.end(); iter2++) {
+                                    if (n == iter2->second) {
+                                        PatternPointer skipgram = ngram;
+                                        skipgram.mask = iter2->first;
+                                        if ( ((occurrencecount == 0) && this->has(skipgram)) || ((occurrencecount != 0) && (this->occurrencecount(skipgram) >= (unsigned int) occurrencecount)) ) {
+                                            result.insert(skipgram);
                                         }
                                     }
                                 }
