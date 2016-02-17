@@ -97,7 +97,7 @@ class Pattern {
         ar & input;
         std::istringstream iss(input);
         const unsigned char cocoVersion = 2;
-        ::new(this)Pattern(&iss, false, cocoVersion, nullptr, true);
+        ::new(this)Pattern(&iss, false, cocoVersion, nullptr, false);
         //unsigned char* buffer = new unsigned char[9999];
         //::new(this)Pattern(&iss, buffer, 9999, false, false);
         //delete buffer;
