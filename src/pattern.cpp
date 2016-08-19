@@ -662,19 +662,21 @@ void Pattern::set(const unsigned char * dataref, const int _size) {
 }
 
 
-Pattern::Pattern(const Pattern& ref, unsigned int begin, unsigned int length) { //slice constructor
+Pattern::Pattern(const Pattern& ref, unsigned int begin, unsigned int length, unsigned int * byteoffset, bool byteoffset_shiftbyone) { //slice constructor
     //to be computed in bytes
-    unsigned int begin_b = 0;
+    unsigned int begin_b = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int length_b = 0;
     bool prevhigh = false;
 
-    unsigned int i = 0;
+    unsigned int i = (byteoffset != NULL) ? *byteoffset : 0;
+    //std::cerr << "DEBUG: starting with offset " << i << ", begin=" << begin << ", length=" << length << std::endl;
     unsigned int n = 0;
     do {
         const unsigned char c = ref.data[i];
         if (c < 128) {
             //we have a token
             n++; 
+            if ((n == 1) && (byteoffset_shiftbyone) && (byteoffset != NULL)) *byteoffset = i+1; 
             if (n - begin == length) {
                 length_b = (i + 1) - begin_b;
                 break;
@@ -690,6 +692,7 @@ Pattern::Pattern(const Pattern& ref, unsigned int begin, unsigned int length) { 
             i++;
         }
     } while (1);
+    if ((byteoffset != NULL) && (!byteoffset_shiftbyone)) *byteoffset = i+1;
 
 
     //std::cerr << "DEBUG: slicing: this=" << (size_t) this <<  ",begin=" << begin << ",length=" << length << ",begin_b=" << begin_b << ",length_b=" << length_b << std::endl; //#TODO:remove
@@ -702,13 +705,13 @@ Pattern::Pattern(const Pattern& ref, unsigned int begin, unsigned int length) { 
     //std::cerr << "DEBUG: slicing done"; //#TODO:remove
 }
 
-PatternPointer::PatternPointer(unsigned char * ref, unsigned int begin, unsigned int length) { //slice constructor
+PatternPointer::PatternPointer(unsigned char * ref, unsigned int begin, unsigned int length, unsigned int * byteoffset, bool byteoffset_shiftbyone) { //slice constructor
     //to be computed in bytes
-    unsigned int begin_b = 0;
+    unsigned int begin_b = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int length_b = 0;
     bool prevhigh = false;
 
-    unsigned int i = 0;
+    unsigned int i = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int n = 0;
     unsigned char c;
     do {
@@ -716,6 +719,7 @@ PatternPointer::PatternPointer(unsigned char * ref, unsigned int begin, unsigned
         if (c < 128) {
             //we have a token
             n++; 
+            if ((n == 1) && (byteoffset_shiftbyone) && (byteoffset != NULL)) *byteoffset = i+1; 
             if (n - begin == length) {
                 length_b = (i + 1) - begin_b;
                 break;
@@ -731,19 +735,20 @@ PatternPointer::PatternPointer(unsigned char * ref, unsigned int begin, unsigned
             i++;
         }
     } while (1);
+    if ((byteoffset != NULL) && (!byteoffset_shiftbyone)) *byteoffset = i+1;
 
     data = ref + begin_b;
     bytes = length_b;
     mask = computemask();
 }
 
-PatternPointer::PatternPointer(const Pattern& ref, unsigned int begin, int unsigned length) { //slice constructor
+PatternPointer::PatternPointer(const Pattern& ref, unsigned int begin, int unsigned length, unsigned int * byteoffset, bool byteoffset_shiftbyone) { //slice constructor
     //to be computed in bytes
-    int begin_b = 0;
-    int length_b = 0;
+    unsigned int begin_b = (byteoffset != NULL) ? *byteoffset : 0;
+    unsigned int length_b = 0;
     bool prevhigh = false;
 
-    unsigned int i = 0;
+    unsigned int i = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int n = 0;
     unsigned char c;
     do {
@@ -751,6 +756,7 @@ PatternPointer::PatternPointer(const Pattern& ref, unsigned int begin, int unsig
         if (c < 128) {
             //we have a token
             n++;
+            if ((n == 1) && (byteoffset_shiftbyone) && (byteoffset != NULL)) *byteoffset = i+1; 
             if (n - begin == length) {
                 length_b = (i + 1) - begin_b;
                 break;
@@ -766,6 +772,7 @@ PatternPointer::PatternPointer(const Pattern& ref, unsigned int begin, int unsig
             i++;
         }
     } while (1);
+    if ((byteoffset != NULL) && (!byteoffset_shiftbyone)) *byteoffset = i+1;
 
     data = ref.data + begin_b;
     /*if (length_b >= B32) {
@@ -781,13 +788,13 @@ PatternPointer::PatternPointer(const Pattern& ref, unsigned int begin, int unsig
 
 
 
-PatternPointer::PatternPointer(const PatternPointer& ref, unsigned int begin, unsigned int length) { //slice constructor
+PatternPointer::PatternPointer(const PatternPointer& ref, unsigned int begin, unsigned int length, unsigned int * byteoffset, bool byteoffset_shiftbyone) { //slice constructor
     //to be computed in bytes
-    unsigned int begin_b = 0;
+    unsigned int begin_b = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int length_b = 0;
     bool prevhigh = false;
 
-    unsigned int i = 0;
+    unsigned int i = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int n = 0;
     unsigned char c;
     do {
@@ -800,6 +807,7 @@ PatternPointer::PatternPointer(const PatternPointer& ref, unsigned int begin, un
         if (c < 128) {
             //we have a token
             n++; 
+            if ((n == 1) && (byteoffset_shiftbyone) && (byteoffset != NULL)) *byteoffset = i+1; 
             if (n - begin == length) {
                 length_b = (i + 1) - begin_b;
                 break;
@@ -815,6 +823,7 @@ PatternPointer::PatternPointer(const PatternPointer& ref, unsigned int begin, un
             i++;
         }
     } while (1);
+    if ((byteoffset != NULL) && (!byteoffset_shiftbyone)) *byteoffset = i+1;
 
     data = ref.data + begin_b;
     bytes = length_b;
@@ -874,19 +883,20 @@ Pattern::Pattern(const PatternPointer& ref) { //constructor from patternpointer
 	}
 }
 
-Pattern::Pattern(const PatternPointer& ref, unsigned int begin, unsigned int length) { //slice constructor from patternpointer
+Pattern::Pattern(const PatternPointer& ref, unsigned int begin, unsigned int length, unsigned int * byteoffset, bool byteoffset_shiftbyone) { //slice constructor from patternpointer
     //to be computed in bytes
-    unsigned int begin_b = 0;
+    unsigned int begin_b = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int length_b = 0;
     bool prevhigh = false;
 
-    unsigned int i = 0;
+    unsigned int i = (byteoffset != NULL) ? *byteoffset : 0;
     unsigned int n = 0;
     do {
         const unsigned char c = ref.data[i];
          if (c < 128) {
             //we have a token
             n++; 
+            if ((n == 1) && (byteoffset_shiftbyone) && (byteoffset != NULL)) *byteoffset = i+1; 
             if (n - begin == length) {
                 length_b = (i + 1) - begin_b;
                 break;
@@ -902,6 +912,7 @@ Pattern::Pattern(const PatternPointer& ref, unsigned int begin, unsigned int len
             i++;
         }
     } while (1);
+    if ((byteoffset != NULL) && (!byteoffset_shiftbyone)) *byteoffset = i+1;
 
     const unsigned char _size = length_b + 1;
     data = new unsigned char[_size]; //may overallocate a bit for skipgrams/flexgrams
@@ -1162,8 +1173,10 @@ int Pattern::ngrams(vector<Pattern> & container, const int n) const { //return m
     const int _n = this->n();
     if (n > _n) return 0;
     int found = 0;
+    unsigned int byteoffset = 0;
     for (int i = 0; i < (_n - n) + 1; i++) {
-        container.push_back( Pattern(*this,i,n));
+        container.push_back( Pattern(*this,0,n, &byteoffset,true));
+        //std::cerr << "byteoffset=" << byteoffset << std::endl;
         found++;
     }
     return found;
@@ -1173,8 +1186,9 @@ int Pattern::ngrams(vector<PatternPointer> & container, const int n) const { //r
     const int _n = this->n();
     if (n > _n) return 0;
     int found = 0;
+    unsigned int byteoffset = 0;
     for (int i = 0; i < (_n - n) + 1; i++) {
-        container.push_back(  PatternPointer(*this,i,n));
+        container.push_back(  PatternPointer(*this,0,n,&byteoffset,true));
         found++;
     }
     return found;
@@ -1184,8 +1198,9 @@ int PatternPointer::ngrams(vector<PatternPointer> & container, const int n) cons
     const int _n = this->n();
     if (n > _n) return 0;
     int found = 0;
+    unsigned int byteoffset = 0;
     for (int i = 0; i < (_n - n) + 1; i++) {
-        container.push_back(PatternPointer(*this,i,n));
+        container.push_back(PatternPointer(*this,0,n,&byteoffset,true));
         found++;
     }
     return found;
@@ -1196,8 +1211,9 @@ int Pattern::ngrams(vector<pair<Pattern,int>> & container, const int n) const { 
     if (n > _n) return 0;
     
     int found = 0;
+    unsigned int byteoffset = 0;
     for (int i = 0; i < (_n - n)+1; i++) {
-        container.push_back( pair<Pattern,int>(Pattern(*this,i,n),i) );
+        container.push_back( pair<Pattern,int>(Pattern(*this,0,n,&byteoffset,true),i) );
         found++;
     }
     return found;
@@ -1208,8 +1224,9 @@ int Pattern::ngrams(vector<pair<PatternPointer,int>> & container, const int n) c
     if (n > _n) return 0;
     
     int found = 0;
+    unsigned int byteoffset = 0;
     for (int i = 0; i < (_n - n)+1; i++) {
-        container.push_back( pair<PatternPointer,int>(PatternPointer(*this,i,n),i) );
+        container.push_back( pair<PatternPointer,int>(PatternPointer(*this,0,n,&byteoffset,true),i) );
         found++;
     }
     return found;
@@ -1221,8 +1238,9 @@ int PatternPointer::ngrams(vector<pair<PatternPointer,int>> & container, const i
     if (n > _n) return 0;
     
     int found = 0;
+    unsigned int byteoffset = 0;
     for (int i = 0; i < (_n - n)+1; i++) {
-        container.push_back( pair<PatternPointer,int>(PatternPointer(*this,i,n),i) );
+        container.push_back( pair<PatternPointer,int>(PatternPointer(*this,0,n,&byteoffset,true),i) );
         found++;
     }
     return found;
@@ -1624,7 +1642,7 @@ Pattern Pattern::extractskipcontent(const Pattern & instance) const {
     return pattern;
 }
 
-bool Pattern::instanceof(const Pattern & skipgram) const {  //TODO: refactor for v2
+bool Pattern::instanceof(const PatternPointer & skipgram) const {
     //Is this an instantiation of the skipgram?
     //Instantiation is not necessarily full, aka: A ? B C is also an instantiation
     //of A ? ? C
@@ -1632,8 +1650,20 @@ bool Pattern::instanceof(const Pattern & skipgram) const {  //TODO: refactor for
     if (skipgram.category() == NGRAM) return (*this) == skipgram;
 
     if (skipgram.category() == FLEXGRAM) {
-        //DYNAMIC SKIPGRAM
-        //TODO: NOT IMPLEMENTED YET!!
+        //TODO: Implement flexgram support!!!
+        const unsigned int _n = n();
+        const unsigned int flex_n = skipgram.n(); //minlength
+        if (flex_n < _n) return false; //too small too match
+
+        /*
+        for (unsigned int i = 0; i < flex_n; i++) {
+            const PatternPointer reftoken = PatternPointer(skipgram,i,1);
+
+            for (unsigned int j = begin; j < _n; j++) {
+            }
+
+        }*/
+
        return false;
     } else {
         //FIXED SKIPGRAM
@@ -1641,16 +1671,16 @@ bool Pattern::instanceof(const Pattern & skipgram) const {  //TODO: refactor for
         if (skipgram.n() != _n) return false;
 
         for (unsigned int i = 0; i < _n; i++) {
-            const Pattern token1 = Pattern(skipgram, i, 1);
-            const Pattern token2 = Pattern(*this, i, 1);
-            if ((token1 != token2) && (token1.category() != SKIPGRAM)) return false;
+            const PatternPointer reftoken = PatternPointer(skipgram, i, 1);
+            const PatternPointer token = PatternPointer(*this, i, 1);
+            if ((reftoken != token) && (reftoken.category() != SKIPGRAM)) return false;
         }
         return true;
     }
 
 }
 
-bool PatternPointer::instanceof(const Pattern & skipgram) const {  //TODO: refactor for v2
+bool PatternPointer::instanceof(const PatternPointer & skipgram) const {  
     //Is this an instantiation of the skipgram?
     //Instantiation is not necessarily full, aka: A ? B C is also an instantiation
     //of A ? ? C
@@ -1658,8 +1688,7 @@ bool PatternPointer::instanceof(const Pattern & skipgram) const {  //TODO: refac
     if (skipgram.category() == NGRAM) return (*this) == skipgram;
 
     if (skipgram.category() == FLEXGRAM) {
-        //DYNAMIC SKIPGRAM
-        //TODO: NOT IMPLEMENTED YET!!
+        //TODO: Implement flexgram support!!!
        return false;
     } else {
         //FIXED SKIPGRAM
@@ -1667,9 +1696,9 @@ bool PatternPointer::instanceof(const Pattern & skipgram) const {  //TODO: refac
         if (skipgram.n() != _n) return false;
 
         for (unsigned int i = 0; i < _n; i++) {
-            const Pattern token1 = Pattern(skipgram, i, 1);
-            const PatternPointer token2 = PatternPointer(*this, i, 1);
-            if ((token2 != token1) && (token1.category() != SKIPGRAM)) return false;
+            const PatternPointer reftoken = PatternPointer(skipgram, i, 1);
+            const PatternPointer token = PatternPointer(*this, i, 1);
+            if ((token != reftoken) && (reftoken.category() != SKIPGRAM)) return false;
         }
         return true;
     }

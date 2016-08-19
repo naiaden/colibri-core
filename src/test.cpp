@@ -526,10 +526,19 @@ int main( int argc, char *argv[] ) {
             i += 1;
         }
 		cerr << "Count check "; test(i,2);
+		cerr << "Instanceof test (positive) "; test( ngram.instanceof(skipgram) );
         
+        string querystring2_1gap = "To be or {*1*} to be";
+        Pattern skipgram_1gap = encoder.buildpattern(querystring2_1gap, true);
+		cerr << "Instanceof test with less abstract skipgram "; test( skipgram_1gap.instanceof(skipgram) );
+		cerr << "Instanceof test (ngram equality) "; test( ngram.instanceof(ngram) );
+
         Pattern revskipgram = skipgram.reverse();
         cerr << "Reverse skipgram: "; test(revskipgram.decode(classdecoder),"be to {*} or {*} To");
         cerr << "N: "; test(revskipgram.n(),6);
+		cerr << "Instanceof test (negative) "; test( !ngram.instanceof(revskipgram) );
+
+
         
         cerr << "--- Skipgram as pattern pointer ---" << endl;
 
@@ -575,6 +584,7 @@ int main( int argc, char *argv[] ) {
             i += 1;
         }
 		cerr << "Count check "; test(i,2);
+		cerr << "Instanceof test (positive) "; test( ngram.instanceof(pskipgram) );
         
         cerr << "----------------------------------------------------" << endl;
 
@@ -1414,11 +1424,6 @@ int main( int argc, char *argv[] ) {
             i++;
         }
         cerr << "Size check: "; test(1, i);
-
-        //PatternPointer corpus_pp = corpus.getpattern();
-        //cerr << "Pattern pointer sanity check (bytesize)"; test(corpus_pp.bytesize(), corpus.bytesize());
-        //cerr << "Pattern pointer sanity check (n)"; test(corpus_pp.n(), i);
-
     }
     {
         cerr << endl << "************************** PatternAlignModel Tests ***************************************" << endl << endl;

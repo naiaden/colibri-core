@@ -7,8 +7,8 @@ Colibri Core
 .. image:: https://badge.fury.io/py/colibricore.svg
     :target: http://badge.fury.io/py/colibricore
 
-.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.34706.svg
-   :target: http://dx.doi.org/10.5281/zenodo.34706
+.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.55641.svg
+   :target: http://dx.doi.org/10.5281/zenodo.55641
 
 .. image:: http://applejack.science.ru.nl/lamabadge.php/colibri-core
    :target: http://applejack.science.ru.nl/languagemachines/
@@ -72,4 +72,19 @@ as a **C++ library**, and as a **Python library**.
 Please consult the full documentation at https://proycon.github.io/colibri-core 
 
 Installation instructions are here:  https://proycon.github.io/colibri-core/doc/#installation
+
+Publication
+----------------------
+
+This software is extensively described in the following peer-reviewed publication:
+
+ van Gompel, M and van den Bosch, A (2016)
+ Efficient n-gram, Skipgram and Flexgram Modelling with Colibri Core.
+ *Journal of Open Research Software*
+ 4: e30, DOI: http://dx.doi.org/10.5334/jors.105 
+
+Click the link to access the publication and please cite it if you make use of
+Colibri Core in your work.
+
+
 

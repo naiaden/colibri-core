@@ -133,7 +133,7 @@ size_t getCurrentRSS( )
 #endif
 }
 
-//===== END MEMORY PROFILING CODE ======== 
+//===== END MEMORY PROFILING CODE ========
 
 
 
@@ -163,6 +163,29 @@ void end(Measurement& m) {
     cout << "---> time: " <<  m.duration << " s res: " << mem << " MB peak: " << peak << " MB" << endl << endl;
 }
 
+void naivetrain(string filename, std::unordered_map<string,uint32_t> & model, int maxlength) {
+	   ifstream IN;
+	   IN.open( filename.c_str() );
+       if (!(IN)) {
+           cerr << "ERROR: File does not exist: " << filename << endl;
+           exit(3);
+       }
+       while (IN.good()) {
+          string line;
+          getline(IN, line);
+          vector<string> tokens;
+          split(line, ' ', tokens);
+          for (int i = 0; i < tokens.size(); i++) {
+            string token = tokens[i];
+            for (int n = 1; n <= maxlength && i+n <= tokens.size(); n++) {
+                  if (n > 1) token += " " + tokens[i+n-1];
+                  model[token] += 1;
+            }
+          }
+       }
+}
+
+
 int main( int argc, char *argv[] ) {
     if (argc != 3) {
         cerr<<"Syntax: colibri-benchmarks textfile testnr"<<endl;
@@ -173,7 +196,7 @@ int main( int argc, char *argv[] ) {
 	const string classfile = textfile + ".colibri.cls";
 
 	const int testnr = atoi(argv[2]);
-	
+
 
 
     ClassEncoder classencoder;
@@ -225,7 +248,7 @@ int main( int argc, char *argv[] ) {
     if (testnr == 6) {
         Measurement m = begin(string("6 - Training unindexed PatternModel from file: threshold 2, up to 8-grams, with skipgrams (exhaustive)"));
         PatternModelOptions options;
-        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = true; options.DOSKIPGRAMS_EXHAUSTIVE = true;
+        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS_EXHAUSTIVE = true;
         PatternModel<uint32_t> model;
         model.train(datafile, options);
         end(m);
@@ -234,7 +257,7 @@ int main( int argc, char *argv[] ) {
     if (testnr == 7) {
         Measurement m = begin(string("7 - Training unindexed PatternModel from preloaded corpus: threshold 2, up to 8-grams, with skipgrams (exhaustive)"));
         PatternModelOptions options;
-        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = true; options.DOSKIPGRAMS_EXHAUSTIVE = true;
+        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS_EXHAUSTIVE = true;
         PatternModel<uint32_t> model(&corpus);
         model.train(datafile, options);
         end(m);
@@ -243,14 +266,39 @@ int main( int argc, char *argv[] ) {
 	if (testnr == 8) {
         Measurement m = begin(string("8 - Training unindexed PatternModel from file: threshold 1, up to 8-grams, no skipgrams"));
         PatternModelOptions options;
-        options.MINTOKENS = 1; options.MAXLENGTH = 8; 
+        options.MINTOKENS = 1; options.MAXLENGTH = 8;
         PatternModel<uint32_t> model;
         model.train(datafile, options);
         end(m);
     }
 
-    if (testnr == 9) {
-        Measurement m = begin(string("9 - Training indexed PatternModel from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
+	if (testnr == 9) {
+        Measurement m = begin(string("9 - Training unindexed PatternPointerModel from preloaded corpus: threshold 1, up to 8-grams, no skipgrams"));
+        PatternModelOptions options;
+        options.MINTOKENS = 1; options.MAXLENGTH = 8;
+        PatternPointerModel<uint32_t> model(&corpus);
+        model.train(datafile, options);
+        end(m);
+    }
+
+	if (testnr == 10) {
+        Measurement m = begin(string("10 - Naive C++ implementation (std::unordered_map<string,uint32_t>): threshold 1, up to 8-grams, no skipgrams"));
+        std::unordered_map<string,uint32_t> model;
+        naivetrain(textfile, model,8);
+        end(m);
+    }
+
+	if (testnr == 11) {
+        Measurement m = begin(string("11 - Training unindexed PatternModel from file: threshold 1, up to 3-grams, no skipgrams"));
+        PatternModelOptions options;
+        options.MINTOKENS = 1; options.MAXLENGTH = 3;
+        PatternModel<uint32_t> model;
+        model.train(datafile, options);
+        end(m);
+    }
+
+    if (testnr == 12) {
+        Measurement m = begin(string("12 - Training indexed PatternModel from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
         PatternModelOptions options;
         options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = false;
         IndexedPatternModel<> model(&corpus);
@@ -258,8 +306,8 @@ int main( int argc, char *argv[] ) {
         end(m);
     }
 
-    if (testnr == 10) {
-        Measurement m = begin(string("10 - Training indexed PatternModel from preloaded corpus: threshold 2, up to 8-grams, with skipgrams"));
+    if (testnr == 13) {
+        Measurement m = begin(string("13 - Training indexed PatternModel from preloaded corpus: threshold 2, up to 8-grams, with skipgrams"));
         PatternModelOptions options;
         options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = true;
         IndexedPatternModel<> model(&corpus);
@@ -267,8 +315,8 @@ int main( int argc, char *argv[] ) {
         end(m);
     }
 
-    if (testnr == 11) {
-        Measurement m = begin(string("11 - Training unindexed PatternPointerModel from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
+    if (testnr == 14) {
+        Measurement m = begin(string("14 - Training unindexed PatternPointerModel from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
         PatternModelOptions options;
         options.MINTOKENS = 2; options.MAXLENGTH = 8;
         PatternPointerModel<uint32_t> model(&corpus);
@@ -276,17 +324,17 @@ int main( int argc, char *argv[] ) {
         end(m);
     }
 
-    if (testnr == 12) {
-        Measurement m = begin(string("12 - Training unindexed PatternPointerModel from preloaded corpus: threshold 2, up to 8-grams, with skipgrams (exhaustive)"));
+    if (testnr == 15) {
+        Measurement m = begin(string("15 - Training unindexed PatternPointerModel from preloaded corpus: threshold 2, up to 8-grams, with skipgrams (exhaustive)"));
         PatternModelOptions options;
-        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = true; options.DOSKIPGRAMS_EXHAUSTIVE = true;
+        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS_EXHAUSTIVE = true;
         PatternPointerModel<uint32_t> model(&corpus);
         model.train(datafile, options);
         end(m);
     }
 
-    if (testnr == 13) {
-        Measurement m = begin(string("13 - Training indexed PatternPointerModel from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
+    if (testnr == 16) {
+        Measurement m = begin(string("16 - Training indexed PatternPointerModel from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
         PatternModelOptions options;
         options.MINTOKENS = 2; options.MAXLENGTH = 8;
         IndexedPatternPointerModel<> model(&corpus);
@@ -294,14 +342,58 @@ int main( int argc, char *argv[] ) {
         end(m);
     }
 
-    if (testnr == 14) {
-        Measurement m = begin(string("14 - Training unindexed PatternModel<HashOrderedPatternMap> from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
+    if (testnr == 17) {
+        Measurement m = begin(string("17 - Training unindexed PatternModel<HashOrderedPatternMap> from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));
         PatternModelOptions options;
         options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = false;
         PatternModel<uint32_t,BaseValueHandler<uint32_t>,HashOrderedPatternMap<uint32_t>> model(&corpus);
         model.train(datafile, options);
         end(m);
     }
+
+
+    
+    if (testnr == 99) {
+        Measurement m = begin(string("99 - Training indexed PatternModel from preloaded corpus: threshold 2, up to 8-grams, with skipgrams, skip-type threshold 12"));
+        PatternModelOptions options;
+        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = true; options.MINSKIPTYPES = 12;
+        IndexedPatternModel<> model(&corpus);
+        model.train(datafile, options);
+        end(m);
+    }
+    if (testnr == 100) {
+        Measurement m = begin(string("100 - Training indexed Pattern Pointer Model from preloaded corpus: threshold 2, up to 8-grams, with skipgrams, skip-type threshold 12"));
+        PatternModelOptions options;
+        options.MINTOKENS = 2; options.MAXLENGTH = 8; options.DOSKIPGRAMS = true; options.MINSKIPTYPES = 12;
+        IndexedPatternPointerModel<> model(&corpus);
+        model.train(datafile, options);
+        end(m);
+    }
+    if (testnr == 101) {
+        Measurement m = begin(string("101 - Training indexed PatternModel from preloaded corpus: threshold 2, up to 8-grams, with skipgrams, skip-type threshold 12, occurence 25"));
+        PatternModelOptions options;
+        options.MINTOKENS = 2; options.MINTOKENS_SKIPGRAMS=25, options.MAXLENGTH = 8; options.DOSKIPGRAMS = true; options.MINSKIPTYPES = 12;
+        IndexedPatternModel<> model(&corpus);
+        model.train(datafile, options);
+        end(m);
+    }
+    if (testnr == 102) {
+        Measurement m = begin(string("102 - Training indexed PatternModel Pointer from preloaded corpus: threshold 2, up to 8-grams, with skipgrams, skip-type threshold 12, occurence 25"));
+        PatternModelOptions options;
+        options.MINTOKENS = 2; options.MINTOKENS_SKIPGRAMS=25, options.MAXLENGTH = 8; options.DOSKIPGRAMS = true; options.MINSKIPTYPES = 12;
+        IndexedPatternPointerModel<> model(&corpus);
+        model.train(datafile, options);
+        end(m);
+    }
+    if (testnr == 103) {
+        Measurement m = begin(string("103 - Training highly-thresholded unindexed pattern pointer model with skipgrams (t=10,l=4,y=20)"));
+        PatternModelOptions options;
+        options.MINTOKENS = 10; options.MAXLENGTH = 4; options.MINTOKENS_SKIPGRAMS = 20; options.DOSKIPGRAMS_EXHAUSTIVE = true;
+        PatternPointerModel<uint32_t> model(&corpus);
+        model.train(datafile, options);
+        end(m);
+    }
+
 
 /*    if (testnr == 15) {
         Measurement m = begin(string("15 - Training unindexed PatternPointerModel<OrderedPatternPointerMap> from preloaded corpus: threshold 2, up to 8-grams, no skipgrams"));

@@ -63,6 +63,8 @@ cdef extern from "pattern.h":
         Pattern reverse() nogil
         PatternPointer getpointer() nogil
 
+        bool instanceof(PatternPointer) nogil
+
     Pattern patternfromfile(const string&)
 
     cdef cppclass PatternPointer:
@@ -92,6 +94,8 @@ cdef extern from "pattern.h":
         bool isflexgram() nogil
         bool unknown() nogil
         PatternPointer reverse() nogil
+
+        bool instanceof(PatternPointer) nogil
 
 
 
@@ -289,7 +293,7 @@ cdef extern from "classencoder.h":
         void processcorpus(string filename, unordered_map[string,unsigned int]) nogil
         void buildclasses(unordered_map[string,unsigned int], int threshold=0) nogil
         void build(string filename,int threshold=0) nogil #build a class from this dataset
-        void encodefile(string, string, bool allowunknown, bool autoaddunknown, bool append) nogil
+        void encodefile(string, string, bool allowunknown, bool autoaddunknown, bool append,bool ignorenewlines, bool quiet) nogil
         void save(string)
         Pattern buildpattern(string, bool allowunknown, bool autoaddunknown) nogil
 
@@ -380,8 +384,8 @@ cdef extern from "patternmodel.h":
         IndexedCorpus * reverseindex
 
         PatternModelInterface * getinterface() nogil
-        void train(string filename, PatternModelOptions options, PatternModelInterface *)
-        void train(istream*, PatternModelOptions options, PatternModelInterface *)
+        void train(string filename, PatternModelOptions options, PatternModelInterface *, PatternSet[uint] *)
+        void train(istream*, PatternModelOptions options, PatternModelInterface *, PatternSet[uint] *)
 
         unsigned int totaloccurrencesingroup(int category, int n)
         unsigned int totalpatternsingroup(int category, int n)
@@ -445,8 +449,8 @@ cdef extern from "patternmodel.h":
         float frequency(Pattern&) nogil
 
         PatternModelInterface * getinterface() nogil
-        void train(string filename, PatternModelOptions options, PatternModelInterface *)
-        void train(istream*, PatternModelOptions options, PatternModelInterface *)
+        void train(string filename, PatternModelOptions options, PatternModelInterface *, PatternSet[uint] *)
+        void train(istream*, PatternModelOptions options, PatternModelInterface *, PatternSet[uint] *)
 
         IndexedCorpus * reverseindex
         bool externalreverseindex
