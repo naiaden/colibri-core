@@ -12,7 +12,7 @@
 *   Radboud University Nijmegen
 *
 *   http://proycon.github.io/colibri-core
-*   
+*
 *   Licensed under GPLv3
 *****************************/
 using namespace std;
@@ -46,9 +46,7 @@ unsigned int bytestoint(istream* IN, const unsigned char version) {
         unsigned char length;
         IN->read((char*) &length,sizeof(unsigned char));
         unsigned char * buffer = new unsigned char[length];;
-        for (int i = 0; i < length; i++) {
-            IN->read((char*) buffer[i], sizeof(unsigned char));
-        }
+        IN->read((char*) buffer, length);
         unsigned int result = bytestoint_v1(buffer, (int) length);
         delete[] buffer;
         return result;
@@ -102,14 +100,14 @@ void ClassDecoder::load(const string & filename) {
        classes[flexclass] = "{**}";
        classes[boundaryclass] = "{|}";
 
-       ifstream *IN =  new ifstream( filename.c_str() );    
+       ifstream *IN =  new ifstream( filename.c_str() );
        if (!(*IN)) {
            cerr << "File does not exist: " << filename << endl;
            exit(3);
        }
         while (IN->good()) {
           string line;
-          getline(*IN, line);              
+          getline(*IN, line);
           for (unsigned int i = 0; i < line.size(); i++) {
               if (line[i] == '\t') {
                   const string cls_s = string(line.begin(), line.begin() + i);
@@ -121,22 +119,22 @@ void ClassDecoder::load(const string & filename) {
                   break;
               }
           }
-        }        
-        IN->close();  
+        }
+        IN->close();
         delete IN;
 }
 
-        
+
 vector<string> ClassDecoder::decodeseq(const vector<int> & seq) {
     vector<string> result;
     const int l = seq.size();
-    for (int i = 0; i < l; i++) 
-        result.push_back( classes[seq[i]] ); 
+    for (int i = 0; i < l; i++)
+        result.push_back( classes[seq[i]] );
     return result;
 }
 /*
 string decodestring(const unsigned char * data, unsigned char datasize) {
-	string output = ""; 
+	string output = "";
     unsigned char buffer[10];
     bool eol = true;
     int n = 0;
@@ -145,11 +143,11 @@ string decodestring(const unsigned char * data, unsigned char datasize) {
 		buffer[n] = c;
         if (c == 0) {
             //cout << "N: " << n << endl;
-            const unsigned int cls = bytestoint(buffer, n);  
+            const unsigned int cls = bytestoint(buffer, n);
             if (cls == 1) {
             	output += "\n";
             	eol = true;
-                linenumber++;            
+                linenumber++;
             } else if (classes.count(cls)) {
                 //cout << cls << ' ';
                 if (!eol) output +=  " ";
@@ -177,7 +175,7 @@ void ClassDecoder::decodefile(const string & filename,  std::ostream* out , unsi
     unsigned int cls;
     bool first = true;
     while (IN->good()) {
-        cls = bytestoint(IN,version); 
+        cls = bytestoint(IN,version);
         if (!IN->good()) break;
         if (cls == delimiterclass) { //endmarker
             if (((start == 0) && (end == 0)) || ((linenumber >= start) || (linenumber <= end))) {
@@ -193,8 +191,8 @@ void ClassDecoder::decodefile(const string & filename,  std::ostream* out , unsi
     }
     IN->close();
     linenumber--;
-    if (!quiet) cerr << "Processed " << linenumber  << " lines" << endl;               
-} 
+    if (!quiet) cerr << "Processed " << linenumber  << " lines" << endl;
+}
 
 void ClassDecoder::decodefile_v1(ifstream *IN,  std::ostream* out , unsigned int start, unsigned int end, bool quiet) {
     unsigned char buffer[1024]; //bit large, only for one token
@@ -231,9 +229,9 @@ void ClassDecoder::decodefile_v1(ifstream *IN,  std::ostream* out , unsigned int
     }
     IN->close();
     linenumber--;
-    if (!quiet) cerr << "Processed " << linenumber  << " lines" << endl;               
-} 
-	
+    if (!quiet) cerr << "Processed " << linenumber  << " lines" << endl;
+}
+
 
 std::string ClassDecoder::decodefiletostring(const std::string & filename,   unsigned int start, unsigned int end, bool quiet) {
     std::ostringstream ss;
@@ -252,7 +250,7 @@ void ClassDecoder::add(const unsigned int cls, const std::string & s) {
 void ClassDecoder::prune(unsigned int threshold) {
     for (unsigned int i = threshold; i <= highestclass; i++) {
         classes.erase(i);
-    } 
+    }
     highestclass = threshold - 1;
 }
 
